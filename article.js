@@ -262,4 +262,21 @@ async function fetchMoreNews(currentId) {
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', fetchArticle);
+document.addEventListener('DOMContentLoaded', () => {
+    fetchArticle();
+
+    // Handle back button
+    const backBtn = document.querySelector('.back-btn-circle');
+    if (backBtn) {
+        backBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // If referrer is our index page, go back to preserve state (scroll, loaded items)
+            if (document.referrer && document.referrer.includes('index.html')) {
+                history.back();
+            } else {
+                // Otherwise (direct link, external referrer), explicit navigation
+                window.location.href = 'index.html';
+            }
+        });
+    }
+});
