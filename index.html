@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最新消息 - 文藻幼兒園</title>
+    <meta name="description" content="文藻幼兒園最新消息與公告">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="bookmark.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container">
+            <h1 class="site-title"><span class="title-en">Latest News</span> <span class="title-zh">最新消息</span></h1>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Featured Article -->
+            <section id="featured" class="featured-section">
+                <!-- Populated by JavaScript -->
+            </section>
+
+            <!-- News Grid -->
+            <section id="news-grid" class="news-grid">
+                <!-- Populated by JavaScript -->
+            </section>
+
+            <!-- Load More Button -->
+            <div id="load-more-container" class="load-more-container" style="display: none;">
+                <button id="load-more-btn" class="load-more-btn">更多消息</button>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loading" class="loading">
+                <div class="loading-spinner"></div>
+                <p>載入中...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error" class="error-message" style="display: none;">
+                <p>無法載入新聞，請稍後再試。</p>
+            </div>
+        </div>
+    </main>
+
+
+
+    <script src="app.js"></script>
+</body>
+
+</html>

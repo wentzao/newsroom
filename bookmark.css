@@ -1,0 +1,32 @@
+/* Bookmark Badge */
+.bookmark-badge {
+    position: absolute;
+    top: -4px;
+    /* Lowered slightly as requested */
+    right: 20px;
+    width: 24px;
+    height: 36px;
+    /* Use drop-shadow filter on the SVG itself for natural shadow */
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+    z-index: 20;
+    pointer-events: none;
+    /* Let clicks pass through to card */
+    transition: transform var(--transition-normal);
+}
+
+/* Wrapper for pinned items */
+.pinned-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* Sync hover effect: When wrapper (card) is hovered, move the badge too */
+.pinned-wrapper:hover .bookmark-badge {
+    transform: translateY(-4px);
+}
+
+/* Ensure container handles absolute badge */
+.news-card-image,
+.featured-image {
+    position: relative;
+}
