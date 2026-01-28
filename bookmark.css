@@ -21,8 +21,9 @@
 }
 
 /* Sync hover effect: When wrapper (card) is hovered, move the badge too */
+/* Sync hover effect removed */
 .pinned-wrapper:hover .bookmark-badge {
-    transform: translateY(-4px);
+    transform: none;
 }
 
 /* Ensure container handles absolute badge */
