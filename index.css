@@ -194,6 +194,8 @@ body.overlay-open .site-header {
     /* Tighten vertical rhythm */
     display: flex;
     align-items: baseline;
+    justify-content: center;
+    /* 置中對齊 */
 }
 
 /* ========================================
