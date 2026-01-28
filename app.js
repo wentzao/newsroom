@@ -1,5 +1,6 @@
 /**
  * Newsroom App - Fetches and displays news from kcb.wentzao.com API
+ * Includes SPA overlay logic for seamless article viewing.
  */
 
 const API_URL = 'https://kcb.wentzao.com/api/news/';
@@ -44,6 +45,240 @@ function getEffectiveCoverImage(news) {
 
     return PLACEHOLDER_IMAGE;
 }
+
+/**
+ * Render article content blocks (Copied from article.js logic)
+ */
+function renderContentBlocks(blocks) {
+    if (!blocks || blocks.length === 0) return '';
+
+    return blocks.map(block => {
+        switch (block.type) {
+            case 'text':
+                // Convert newlines to paragraphs
+                const paragraphs = block.content.split('\n').filter(p => p.trim());
+                return paragraphs.map(p => `<p>${p}</p>`).join('');
+
+            case 'image':
+                return `
+                    <figure class="content-image">
+                        <img src="${block.url}" alt="${block.caption || ''}" loading="lazy" onerror="this.src='${PLACEHOLDER_IMAGE}'">
+                        ${block.caption ? `<figcaption>${block.caption}</figcaption>` : ''}
+                    </figure>
+                `;
+
+            case 'video':
+                // Simple YouTube ID extraction
+                const ytMatch = block.url && block.url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+                const youtubeId = ytMatch ? ytMatch[1] : null;
+
+                if (youtubeId) {
+                    return `
+                        <figure class="content-video">
+                            <div class="video-wrapper">
+                                <iframe 
+                                    src="https://www.youtube.com/embed/${youtubeId}" 
+                                    title="${block.caption || 'YouTube video player'}" 
+                                    frameborder="0" 
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                    allowfullscreen>
+                                </iframe>
+                            </div>
+                            ${block.caption ? `<figcaption>${block.caption}</figcaption>` : ''}
+                        </figure>
+                    `;
+                }
+                return '';
+
+            case 'link':
+                return `
+                    <div class="content-link-wrapper">
+                        <a href="${block.url}" target="_blank" rel="noopener noreferrer" class="content-link">
+                            <span class="link-icon">🔗</span>
+                            <span class="link-text">${block.label || block.url}</span>
+                        </a>
+                    </div>
+                `;
+
+            default:
+                return '';
+        }
+    }).join('');
+}
+
+/**
+ * Render full article HTML for the overlay
+ */
+function buildArticleHtml(article) {
+    // Build content
+    let contentHtml = '';
+
+    // Cover image logic
+    if (article.coverImage) {
+        contentHtml += `
+            <figure class="article-cover">
+                <img src="${article.coverImage}" alt="${article.title}" onerror="this.src='${PLACEHOLDER_IMAGE}'">
+            </figure>
+        `;
+    }
+
+    // Content blocks
+    contentHtml += renderContentBlocks(article.contentBlocks);
+
+    // Survey Notice
+    if (article.surveyId) {
+        contentHtml += `
+            <div class="content-link-wrapper">
+                <div class="content-link survey-card">
+                    <span class="link-icon">📝</span>
+                    <span class="link-text">本篇有問卷，請至電子聯絡簿填寫</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Author
+    if (article.author) {
+        contentHtml += `<div class="article-author">— ${article.author}</div>`;
+    }
+
+    return `
+        <article class="article-container">
+            <!-- Article Header -->
+            <header class="article-header-wrapper">
+                <a href="#" class="back-btn-circle" id="overlay-back-btn" aria-label="返回">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </a>
+                <div class="article-header-content">
+                    <div class="article-meta">
+                        <span class="article-tag">${article.tag || '公告'}</span>
+                        <span class="article-date">${formatDate(article.publishAt)}</span>
+                    </div>
+                    <h1 class="article-title">${article.title}</h1>
+                </div>
+            </header>
+
+            <!-- Article Content -->
+            <div id="article-content" class="article-content">
+                ${contentHtml}
+            </div>
+        </article>
+        
+        <!-- More News Section -->
+        <section class="more-news-section">
+            <div class="more-news-container">
+                <h2 class="more-news-title">文藻幼兒園 的更多資訊</h2>
+                <div id="more-news-list" class="more-news-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+/**
+ * Render More News items
+ */
+function renderMoreNews(currentId) {
+    const container = document.getElementById('more-news-list');
+    if (!container) return;
+
+    // Use globally loaded items, filter current, take 3
+    const relatedNews = allNewsItems
+        .filter(item => item.id !== currentId)
+        .slice(0, 3);
+
+    if (relatedNews.length === 0) {
+        container.innerHTML = '<p>沒有更多消息</p>';
+        return;
+    }
+
+    container.innerHTML = relatedNews.map(news => {
+        const imageUrl = getEffectiveCoverImage(news);
+        // Determine if cover specific or fallback for opacity class
+        const isFallback = !news.coverImage;
+
+        return `
+            <a href="?id=${news.id}" class="more-news-item" data-id="${news.id}" onclick="handleCardClick(event)">
+                <div class="more-news-image-wrapper">
+                    <img src="${imageUrl}" alt="${news.title}" loading="lazy" class="${isFallback ? 'fallback' : ''}" onerror="this.src='${PLACEHOLDER_IMAGE}'">
+                </div>
+                <div class="more-news-content">
+                    <span class="more-news-tag">${news.tag || '公告'}</span>
+                    <h3 class="more-news-title">${news.title}</h3>
+                    <time class="more-news-date">${formatDate(news.publishAt)}</time>
+                </div>
+            </a>
+        `;
+    }).join('');
+}
+
+/**
+ * SPA Overlay Logic
+ */
+async function openArticleOverlay(articleId) {
+    const overlay = document.getElementById('article-overlay');
+    if (!overlay) return;
+
+    // Show overlay with loading state or skeleton if needed
+    // For now, assume fast load or simple placeholder
+    overlay.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
+    overlay.classList.add('active');
+    document.body.classList.add('noscroll');
+
+    try {
+        const response = await fetch(API_URL + articleId);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const article = await response.json();
+
+        // Render content
+        overlay.innerHTML = buildArticleHtml(article);
+
+        // Render More News
+        renderMoreNews(articleId);
+
+        // Bind back button
+        const backBtn = document.getElementById('overlay-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeArticleOverlay();
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load article', error);
+        overlay.innerHTML = '<div class="error-message"><p>無法載入文章</p><button onclick="closeArticleOverlay()">關閉</button></div>';
+    }
+}
+
+function closeArticleOverlay() {
+    const overlay = document.getElementById('article-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        // Clear content after transition to save memory/clean state
+        setTimeout(() => {
+            overlay.innerHTML = '';
+        }, 400);
+    }
+    document.body.classList.remove('noscroll');
+
+    // Reset URL if we pushed state
+    const url = new URL(window.location);
+    if (url.searchParams.has('id')) {
+        // Go back in history if we pushed a state
+        if (history.state && history.state.articleOpen) {
+            history.back();
+        } else {
+            // Just replace
+            const newUrl = window.location.pathname;
+            history.replaceState(null, '', newUrl);
+        }
+    }
+}
+
 
 /**
  * Create featured card HTML
@@ -93,9 +328,6 @@ function createFeaturedCard(news) {
 /**
  * Create news card HTML
  */
-/**
- * Create news card HTML
- */
 function createNewsCard(news, isSmall = false) {
     const imageUrl = getEffectiveCoverImage(news);
     const tagClass = isImportantTag(news.tag) ? 'news-card-tag important' : 'news-card-tag';
@@ -139,9 +371,6 @@ function createNewsCard(news, isSmall = false) {
     return cardHtml;
 }
 
-/**
- * Render the news to the page
- */
 // State for pagination
 let allNewsItems = [];
 let renderedCount = 0;
@@ -225,12 +454,10 @@ function handleLoadMore() {
         const smallGridContainer = document.getElementById('news-grid-small-container');
         if (smallGridContainer) {
             // Append new items to the existing small grid container
-            // Since we are adding string HTML, we can just insertAdjacentHTML
             const newCardsHtml = nextBatch.map(news => createNewsCard(news, true)).join('');
             smallGridContainer.insertAdjacentHTML('beforeend', newCardsHtml);
 
-            // Re-bind click handlers for new elements (or delegate event handling)
-            // For simplicity, we just re-run handler binding on all cards (a bit wasteful but safe)
+            // Re-bind click handlers for new elements
             addCardClickHandlers();
         }
 
@@ -272,7 +499,6 @@ async function fetchNews() {
     showLoading();
 
     try {
-        // Increase limit to allow for client-side pagination flow
         const response = await fetch(API_URL + '?limit=50');
 
         if (!response.ok) {
@@ -282,7 +508,6 @@ async function fetchNews() {
         const data = await response.json();
         hideLoading();
 
-        // API returns { items: [...], total, page, limit, hasMore }
         renderNews(data.items || data);
         return data.items || data;
 
@@ -294,27 +519,18 @@ async function fetchNews() {
 }
 
 /**
- * Handle card click - navigate to article page
+ * Handle card click - SPA Navigation
  */
 function handleCardClick(event) {
-    // Prevent default behavior if it's an anchor tag (though it's an article tag currently)
     event.preventDefault();
 
     const card = event.currentTarget.closest('.featured-card, .news-card') || event.currentTarget;
-    const articleId = card.dataset.id; // Corrected from .dataset.id
-
-    console.log('Navigating to article, ID:', articleId);
+    const articleId = card.dataset.id;
 
     if (articleId) {
-        // Save to sessionStorage as backup in case query params are stripped
-        sessionStorage.setItem('currentArticleId', articleId);
-
-        // Use full path to be safe with local server behaviors
-        const targetUrl = `article.html?id=${articleId}`;
-        console.log('Setting window.location.href to:', targetUrl);
-        window.location.href = targetUrl;
-    } else {
-        console.error('No article ID found on card', card);
+        // Update URL and History
+        history.pushState({ articleOpen: true, articleId: articleId }, '', `?id=${articleId}`);
+        openArticleOverlay(articleId);
     }
 }
 
@@ -332,15 +548,52 @@ function addCardClickHandlers() {
     });
 }
 
+// Handle Browser Back Button
+window.addEventListener('popstate', (event) => {
+    // If we have state, it means we might be popping back to a state that is 'open' 
+    // BUT usually popstate happens when we go *back* to null state (home).
+    // Let's check: if the new URL has no ID, close overlay.
+
+    // Simplest logic: Check URL param
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('id')) {
+        const overlay = document.getElementById('article-overlay');
+        if (overlay && overlay.classList.contains('active')) {
+            // We interpret this as "Close overlay"
+            // We manually close it, but we DON'T call history.back() again 
+            // because we are already here due to a back action.
+            const overlay = document.getElementById('article-overlay');
+            overlay.classList.remove('active');
+            setTimeout(() => { overlay.innerHTML = ''; }, 400);
+            document.body.classList.remove('noscroll');
+        }
+    } else {
+        // If we popped TO a state with ID, we should open it (e.g. Forward button)
+        const id = params.get('id');
+        openArticleOverlay(id);
+    }
+});
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    // Check if loaded with ID (direct link)
+    const params = new URLSearchParams(window.location.search);
+    const initialId = params.get('id');
+
+    // Fetch news first to populate background
+    await fetchNews();
+    addCardClickHandlers();
+
     // Add load more listener
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (loadMoreBtn) {
         loadMoreBtn.addEventListener('click', handleLoadMore);
     }
 
-    await fetchNews();
-    addCardClickHandlers();
+    if (initialId) {
+        // If direct link, open overlay immediately
+        // Note: The list in background is already fetching/rendering
+        openArticleOverlay(initialId);
+    }
 });
 

@@ -489,3 +489,60 @@ img {
 .load-more-btn:active {
     transform: scale(0.98);
 }
+
+/* ========================================
+   Article Overlay (SPA Transition)
+   ======================================== */
+.article-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 900;
+    /* Below site-header (1000) */
+    background-color: var(--color-background);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    padding-top: 60px;
+    /* Space for header */
+}
+
+.article-overlay.active {
+    transform: translateX(0);
+}
+
+/* Prevent body scroll when overlay is open */
+body.noscroll {
+    overflow: hidden;
+}
+
+/* Ensure overlay content is centered and clean */
+.article-overlay .article-container,
+.article-overlay .more-news-container {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    transition-delay: 0.1s;
+}
+
+.article-overlay.active .article-container,
+.article-overlay.active .more-news-container {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Close button for overlay/header override */
+.article-header-wrapper .back-btn-circle {
+    /* Ensure it works within overlay */
+    cursor: pointer;
+}
+
+/* Mobile Adjustment for overlay padding */
+@media (max-width: 640px) {
+    .article-overlay {
+        padding-top: 52px;
+    }
+}
