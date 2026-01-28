@@ -153,8 +153,8 @@ img {
 }
 
 .featured-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+    transform: none;
+    box-shadow: none;
 }
 
 .featured-image {
@@ -235,8 +235,8 @@ img {
 }
 
 .news-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
+    transform: none;
+    box-shadow: none;
 }
 
 /* Skeleton Loading Effect */
@@ -290,8 +290,7 @@ img {
     /* Balanced: Vert 20px, Horz 24px */
     display: flex;
     flex-direction: column;
-    height: 100%;
-    /* Ensure full height to push date down */
+    /* height: 100%; Removed to fix missing date issue (natural flow is safer) */
     justify-content: flex-start;
 }
 
@@ -332,8 +331,9 @@ img {
 .news-card-date {
     font-size: 0.8rem;
     color: var(--color-text-secondary);
-    margin-top: auto;
-    /* Pushes date to the bottom */
+    margin-top: 0.5rem;
+    /* Fixed margin instead of auto to guarantee visibility */
+    display: block;
 }
 
 /* ========================================
@@ -357,8 +357,9 @@ img {
 }
 
 .news-card-small:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    /* transform: translateY(-2px); */
+    /* box-shadow: var(--shadow-sm); */
+    /* Hover effect removed as requested */
 }
 
 .news-card-small .news-card-image {
@@ -485,6 +486,18 @@ img {
     .news-card-small .news-card-content {
         padding: 1.25rem 1.5rem;
         /* Match main card padding */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        /* height: 100%; Removed to allow natural flow on mobile */
+    }
+
+    .news-card-small .news-card-date {
+        display: block;
+        margin-top: 0.5rem;
+        /* Explicit margin instead of auto */
+        opacity: 1;
+        /* Ensure visibility */
     }
 
     .news-card-small .news-card-title {
@@ -566,7 +579,8 @@ img {
     height: 100%;
     z-index: 900;
     /* Below site-header (1000) */
-    background-color: var(--color-background);
+    background-color: #ffffff;
+    /* White background for article content */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     transform: translateX(100%);
