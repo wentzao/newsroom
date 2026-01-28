@@ -377,6 +377,26 @@ let renderedCount = 0;
 const INITIAL_BATCH_SIZE = 11; // 1 featured + 4 grid + 6 small
 const LOAD_MORE_BATCH_SIZE = 6; // Load 6 at a time (2 rows)
 
+// Scroll Observer
+const scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            scrollObserver.unobserve(entry.target); // Trigger once
+        }
+    });
+}, {
+    threshold: 0.1, // Trigger when 10% visible
+    rootMargin: '50px' // Start slightly early
+});
+
+/**
+ * Helper to observe new elements
+ */
+function observeElements(elements) {
+    elements.forEach(el => scrollObserver.observe(el));
+}
+
 /**
  * Render the news to the page
  */
@@ -395,41 +415,64 @@ function renderNews(newsItems) {
 
     // Reset grid
     renderedCount = 0;
+    const newElements = []; // Track new elements to observe
 
     // 1. Featured Item (1)
     if (renderedCount < allNewsItems.length) {
         const featured = allNewsItems[renderedCount];
         featuredSection.innerHTML = createFeaturedCard(featured);
+        const card = featuredSection.querySelector('.featured-card, .pinned-wrapper');
+        if (card) {
+            card.classList.add('reveal-on-scroll');
+            newElements.push(card);
+        }
         renderedCount++;
     }
 
     // 2. Main Grid Items (Next 4)
-    let mainNewsHtml = '';
     const mainBatchSize = 4;
     const mainItems = allNewsItems.slice(renderedCount, renderedCount + mainBatchSize);
     if (mainItems.length > 0) {
-        mainNewsHtml = mainItems.map(news => createNewsCard(news)).join('');
+        const html = mainItems.map(news => createNewsCard(news)).join('');
+        newsGrid.insertAdjacentHTML('beforeend', html);
+
+        // Find the newly added cards (this is a bit broad but safe for initial render)
+        const cards = newsGrid.querySelectorAll('.news-card:not(.reveal-on-scroll)');
+        cards.forEach(card => {
+            card.classList.add('reveal-on-scroll');
+            newElements.push(card);
+        });
+
         renderedCount += mainItems.length;
     }
 
     // 3. Small Grid Items (Initial Batch - Next 6)
-    let smallNewsHtml = '';
     const smallBatchSize = 6;
     const smallItems = allNewsItems.slice(renderedCount, renderedCount + smallBatchSize);
 
-    // Always create a container for small grid, even if first batch is empty or partial
-    // This allows us to append to it later
-    smallNewsHtml = `<div id="news-grid-small-container" class="news-grid-small">`;
+    // Create container
+    const smallContainerHtml = `<div id="news-grid-small-container" class="news-grid-small"></div>`;
+    newsGrid.insertAdjacentHTML('beforeend', smallContainerHtml);
+    const smallGridContainer = document.getElementById('news-grid-small-container');
+
     if (smallItems.length > 0) {
-        smallNewsHtml += smallItems.map(news => createNewsCard(news, true)).join('');
+        const html = smallItems.map(news => createNewsCard(news, true)).join('');
+        smallGridContainer.innerHTML = html;
+
+        const cards = smallGridContainer.querySelectorAll('.news-card');
+        cards.forEach(card => {
+            card.classList.add('reveal-on-scroll');
+            newElements.push(card);
+        });
+
         renderedCount += smallItems.length;
     }
-    smallNewsHtml += `</div>`;
-
-    newsGrid.innerHTML = mainNewsHtml + smallNewsHtml;
 
     // Check if we need to show Load More button
     updateLoadMoreButton();
+
+    // Start observing
+    observeElements(newElements);
 }
 
 /**
@@ -453,11 +496,27 @@ function handleLoadMore() {
     if (nextBatch.length > 0) {
         const smallGridContainer = document.getElementById('news-grid-small-container');
         if (smallGridContainer) {
-            // Append new items to the existing small grid container
+            // Append new items
             const newCardsHtml = nextBatch.map(news => createNewsCard(news, true)).join('');
+
+            // We need to parse this HTML to find elements to observe
+            // Inserting adjacent HTML is fine, but we need to select the new ones.
+            // A simple trick is to query all '.news-card' inside container that DO NOT have .reveal-on-scroll class yet
+            // Wait, createNewsCard doesn't enable it by default in my implementation here, I add it manually.
+            // Let's modify createNewsCard logic slightly in code or just handle it here.
+            // Actually, inserting HTML string makes it hard to get refs immediately without querying.
+
+            // To be robust: Insert, then query un-initialized cards.
             smallGridContainer.insertAdjacentHTML('beforeend', newCardsHtml);
 
-            // Re-bind click handlers for new elements
+            const newCards = Array.from(smallGridContainer.querySelectorAll('.news-card')).filter(c => !c.classList.contains('reveal-on-scroll'));
+
+            newCards.forEach(card => {
+                card.classList.add('reveal-on-scroll');
+                scrollObserver.observe(card); // Observe directly
+            });
+
+            // Re-bind click handlers
             addCardClickHandlers();
         }
 

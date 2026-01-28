@@ -57,6 +57,19 @@
     padding: 0;
 }
 
+/* Scroll Reveal Animation */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
@@ -146,6 +159,7 @@ img {
 
 .featured-image {
     aspect-ratio: 4 / 3;
+    /* Reverted for desktop */
     overflow: hidden;
 }
 
@@ -255,6 +269,7 @@ img {
 
 .news-card-image {
     aspect-ratio: 4 / 3;
+    /* Reverted for desktop */
     overflow: hidden;
     background: #ffffff;
 }
@@ -271,14 +286,25 @@ img {
 }
 
 .news-card-content {
-    padding: var(--spacing-md);
+    padding: 1.25rem 1.5rem;
+    /* Balanced: Vert 20px, Horz 24px */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    /* Ensure full height to push date down */
+    justify-content: flex-start;
 }
 
 .news-card-tag {
-    font-size: var(--font-size-xs);
-    font-weight: 500;
+    font-size: 0.75rem;
+    /* 12px */
+    font-weight: 600;
     color: var(--color-tag);
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: 0.5rem;
+    /* 8px gap to title */
+    text-transform: uppercase;
+    /* Optional: adds to the premium feel */
+    letter-spacing: 0.02em;
 }
 
 .news-card-tag.important {
@@ -286,22 +312,28 @@ img {
 }
 
 .news-card-title {
-    font-size: var(--font-size-base);
-    font-weight: 600;
-    line-height: 1.4;
-    margin-bottom: var(--spacing-sm);
+    font-size: 1.35rem;
+    /* Approx 22px - Large & Bold */
+    font-weight: 700;
+    line-height: 1.25;
+    /* Tight line height */
+    margin-bottom: 0.75rem;
+    /* Gap to date */
     color: var(--color-text-primary);
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    /* Standard property */
+    -webkit-line-clamp: 3;
+    /* Allow 3 lines for larger titles */
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    /* Ensure title doesn't grow indefinitely, but feels substantial */
 }
 
 .news-card-date {
-    font-size: var(--font-size-xs);
+    font-size: 0.8rem;
     color: var(--color-text-secondary);
+    margin-top: auto;
+    /* Pushes date to the bottom */
 }
 
 /* ========================================
@@ -411,7 +443,8 @@ img {
 /* Mobile */
 @media (max-width: 640px) {
     :root {
-        --spacing-lg: 1rem;
+        --spacing-lg: 1.25rem;
+        /* Increased from 1rem (16px) to 20px for screen edge gap */
         --spacing-xl: 1.5rem;
         --spacing-2xl: 2rem;
     }
@@ -425,7 +458,8 @@ img {
     }
 
     .featured-content {
-        padding: var(--spacing-lg);
+        padding: 1.25rem 1.5rem;
+        /* Reduced vertical (20px), kept horizontal spacious (24px) */
     }
 
     .news-grid {
@@ -434,6 +468,37 @@ img {
 
     .news-grid-small {
         grid-template-columns: 1fr;
+    }
+
+    /* Mobile Aspect Ratio Adjustment */
+    .featured-image,
+    .news-card-image {
+        aspect-ratio: 2 / 1;
+        /* Sleeker look for mobile */
+    }
+
+    /* Unify Mobile Card Styles (Override 'Small' Card styles) */
+    .news-card-small .news-card-image {
+        aspect-ratio: 2 / 1;
+    }
+
+    .news-card-small .news-card-content {
+        padding: 1.25rem 1.5rem;
+        /* Match main card padding */
+    }
+
+    .news-card-small .news-card-title {
+        font-size: 1.35rem;
+        /* Match main card title size */
+    }
+
+    /* Ensure Title & Date visibility for small cards on mobile */
+    .news-card-small .news-card-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 }
 

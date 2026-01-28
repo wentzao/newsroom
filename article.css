@@ -216,14 +216,16 @@
 @media (max-width: 800px) {
     .article-header-wrapper {
         display: flex;
+        flex-direction: column;
+        /* Stack vertically so title can flush left */
         gap: var(--spacing-md);
     }
 
     .back-btn-circle {
         position: static;
         margin-top: 0;
-        /* When inline, ensure it doesn't shrink */
-        flex-shrink: 0;
+        align-self: flex-start;
+        /* Ensure it stays on the left */
     }
 }
 
