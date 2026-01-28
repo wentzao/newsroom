@@ -249,8 +249,8 @@ async function openArticleOverlay(articleId) {
         overlay.classList.add('active');
     });
 
-    // 5. Global Scroll Lock (Idempotent)
-    document.body.classList.add('noscroll');
+    // 5. Global Scroll Lock (Idempotent with padding fix)
+    lockBodyScroll();
 
     try {
         const response = await fetch(API_URL + articleId);
@@ -263,55 +263,7 @@ async function openArticleOverlay(articleId) {
         // Render More News (Scoped to this overlay)
         renderMoreNews(articleId, overlay);
 
-        // Swipe to close logic (Specific to THIS overlay)
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let isDragging = false;
-        let isScrolling = false;
-
-        overlay.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            isDragging = false;
-            isScrolling = false;
-            overlay.style.transition = 'none';
-        }, { passive: true });
-
-        overlay.addEventListener('touchmove', (e) => {
-            if (isScrolling) return;
-
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            const deltaX = touchX - touchStartX;
-            const deltaY = Math.abs(touchY - touchStartY);
-
-            if (!isDragging && deltaX > 10 && deltaX > deltaY) {
-                isDragging = true;
-            } else if (!isDragging && deltaY > 10) {
-                isScrolling = true;
-            }
-
-            if (isDragging && deltaX > 0) {
-                e.preventDefault();
-                overlay.style.transform = `translateX(${deltaX}px)`;
-            }
-        }, { passive: false });
-
-        overlay.addEventListener('touchend', (e) => {
-            if (isDragging) {
-                const deltaX = e.changedTouches[0].clientX - touchStartX;
-                const threshold = window.innerWidth * 0.3;
-
-                if (deltaX > threshold) {
-                    closeArticleOverlay(overlay);
-                } else {
-                    overlay.style.transition = 'transform 0.3s ease-out';
-                    overlay.style.transform = 'translateX(0)';
-                }
-            }
-            isDragging = false;
-            isScrolling = false;
-        });
+        // Swipe to close logic REMOVED for simplicity
 
     } catch (error) {
         console.error('Failed to load article', error);
@@ -319,6 +271,30 @@ async function openArticleOverlay(articleId) {
         const closeBtn = overlay.querySelector('.close-btn-error');
         if (closeBtn) closeBtn.onclick = () => closeArticleOverlay(overlay);
     }
+}
+
+/**
+ * Helper to Lock Body Scroll (Prevent Shift)
+ */
+function lockBodyScroll() {
+    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.paddingRight = `${scrollBarWidth}px`;
+    // Also handle fixed/sticky header if needed
+    const header = document.querySelector('.site-header');
+    if (header) header.style.paddingRight = `${scrollBarWidth}px`;
+
+    document.body.classList.add('noscroll');
+}
+
+/**
+ * Helper to Unlock Body Scroll
+ */
+function unlockBodyScroll() {
+    document.body.style.paddingRight = '';
+    const header = document.querySelector('.site-header');
+    if (header) header.style.paddingRight = '';
+
+    document.body.classList.remove('noscroll');
 }
 
 /**
@@ -347,7 +323,7 @@ function closeArticleOverlay(specificOverlay = null) {
             // Allow scroll ONLY if no overlays left
             const remaining = document.querySelectorAll('.article-overlay');
             if (remaining.length === 0) {
-                document.body.classList.remove('noscroll');
+                unlockBodyScroll();
             }
         }, 400); // Match CSS transition duration
 
@@ -418,7 +394,7 @@ function closeOverlayInternal(overlay) {
     setTimeout(() => {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         if (document.querySelectorAll('.article-overlay').length === 0) {
-            document.body.classList.remove('noscroll');
+            unlockBodyScroll();
         }
     }, 400);
 }
@@ -768,7 +744,7 @@ window.addEventListener('popstate', (event) => {
             const overlay = document.getElementById('article-overlay');
             overlay.classList.remove('active');
             setTimeout(() => { overlay.innerHTML = ''; }, 400);
-            document.body.classList.remove('noscroll');
+            unlockBodyScroll();
         }
     } else {
         // If we popped TO a state with ID, we should open it (e.g. Forward button)
