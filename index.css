@@ -74,6 +74,8 @@ html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-x: none;
+    /* Prevent system back swipe */
 }
 
 body {
@@ -81,6 +83,8 @@ body {
     color: var(--color-text-primary);
     background-color: var(--color-background);
     line-height: 1.5;
+    overscroll-behavior-x: none;
+    /* Prevent system back swipe */
 }
 
 img {
@@ -583,6 +587,8 @@ img {
     /* White background for article content */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: none;
+    /* Prevent system back swipe */
     transform: translateX(100%);
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     padding-top: 60px;

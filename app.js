@@ -248,6 +248,64 @@ async function openArticleOverlay(articleId) {
                 closeArticleOverlay();
             });
         }
+
+        // Swipe to close logic
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let isScrolling = false;
+
+        overlay.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isDragging = false;
+            isScrolling = false;
+            overlay.style.transition = 'none'; // Disable transition for 1:1 movement
+        }, { passive: true });
+
+        overlay.addEventListener('touchmove', (e) => {
+            if (isScrolling) return;
+
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const deltaX = touchX - touchStartX;
+            const deltaY = Math.abs(touchY - touchStartY);
+
+            // Determine if horizontal swipe or vertical scroll
+            if (!isDragging && deltaX > 10 && deltaX > deltaY) {
+                isDragging = true;
+            } else if (!isDragging && deltaY > 10) {
+                isScrolling = true;
+            }
+
+            if (isDragging && deltaX > 0) {
+                e.preventDefault(); // Prevent browser navigation
+                overlay.style.transform = `translateX(${deltaX}px)`;
+            }
+        }, { passive: false });
+
+        overlay.addEventListener('touchend', (e) => {
+            if (isDragging) {
+                const deltaX = e.changedTouches[0].clientX - touchStartX;
+                const threshold = window.innerWidth * 0.3; // Close if dragged 30% width
+
+                if (deltaX > threshold) {
+                    closeArticleOverlay();
+                } else {
+                    // Snap back
+                    overlay.style.transition = 'transform 0.3s ease-out';
+                    overlay.style.transform = 'translateX(0)';
+                }
+            }
+            // Reset flags
+            isDragging = false;
+            isScrolling = false;
+            // Restore transition if we didn't close (close() handles its own)
+            if (overlay.classList.contains('active')) {
+                // Wait for snap back if needed, but close() resets it anyway
+            }
+        });
     } catch (error) {
         console.error('Failed to load article', error);
         overlay.innerHTML = '<div class="error-message"><p>無法載入文章</p><button onclick="closeArticleOverlay()">關閉</button></div>';
