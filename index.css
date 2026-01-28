@@ -216,9 +216,11 @@ body.overlay-open .site-header {
 .featured-card {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-xl);
+    gap: 0;
+    /* 🍎 No gap between sections */
     background: var(--color-card-bg);
-    border-radius: var(--radius-xl);
+    border-radius: 20px;
+    /* 🍎 Large Apple-style radius */
     overflow: hidden;
     transition: transform var(--transition-normal), box-shadow var(--transition-normal);
     cursor: pointer;
@@ -230,8 +232,8 @@ body.overlay-open .site-header {
 }
 
 .featured-image {
-    aspect-ratio: 4 / 3;
-    /* Reverted for desktop */
+    aspect-ratio: 16 / 9;
+    /* 🍎 Apple uses 16:9 for featured images */
     overflow: hidden;
 }
 
@@ -250,14 +252,19 @@ body.overlay-open .site-header {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: var(--spacing-xl);
+    padding: 2rem 2.5rem;
+    /* 🍎 Generous padding: 32px top/bottom, 40px sides */
 }
 
 .featured-tag {
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    color: var(--color-tag);
-    margin-bottom: var(--spacing-sm);
+    font-size: 0.6875rem;
+    /* 🍎 11px - same as small cards */
+    font-weight: 600;
+    color: #6e6e73;
+    margin-bottom: 0.625rem;
+    /* 🍎 10px gap */
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .featured-tag.important {
@@ -265,16 +272,25 @@ body.overlay-open .site-header {
 }
 
 .featured-title {
-    font-size: var(--font-size-xl);
+    font-size: 1.75rem;
+    /* 🍎 28px - Large featured title */
     font-weight: 700;
-    line-height: 1.3;
-    margin-bottom: var(--spacing-md);
-    color: var(--color-text-primary);
+    line-height: 1.14;
+    /* 🍎 Tight Apple line-height */
+    margin-bottom: 0.75rem;
+    /* 🍎 12px gap to date */
+    color: #1d1d1f;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .featured-date {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+    /* 🍎 13px */
+    color: #6e6e73;
+    font-weight: 400;
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
@@ -422,28 +438,69 @@ body.overlay-open .site-header {
 
 .news-card-small {
     background: var(--color-card-bg);
-    border-radius: var(--radius-md);
+    border-radius: 18px;
+    /* 🍎 Apple-style large radius */
     overflow: hidden;
     transition: transform var(--transition-normal), box-shadow var(--transition-normal);
     cursor: pointer;
 }
 
 .news-card-small:hover {
-    /* transform: translateY(-2px); */
-    /* box-shadow: var(--shadow-sm); */
-    /* Hover effect removed as requested */
+    transform: scale(1.02);
+    /* 🍎 Subtle scale on hover */
 }
 
 .news-card-small .news-card-image {
     aspect-ratio: 16 / 9;
+    /* 🍎 Apple standard ratio */
+}
+
+.news-card-small .news-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .news-card-small .news-card-content {
-    padding: var(--spacing-sm);
+    padding: 1.25rem 1.5rem 1.5rem 1.5rem;
+    /* 🍎 Generous padding: top 20px, sides 24px, bottom 24px */
+}
+
+.news-card-small .news-card-tag {
+    font-size: 0.6875rem;
+    /* 🍎 11px - Very small like Apple */
+    font-weight: 600;
+    color: #6e6e73;
+    /* 🍎 Apple's secondary text color */
+    margin-bottom: 0.375rem;
+    /* 6px gap */
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
 }
 
 .news-card-small .news-card-title {
-    font-size: var(--font-size-sm);
+    font-size: 1.3125rem;
+    /* 🍎 21px - Apple's card title size */
+    font-weight: 700;
+    /* 🍎 Bold */
+    line-height: 1.19;
+    /* 🍎 Tight line height (25px / 21px) */
+    margin-bottom: 0.5rem;
+    color: #1d1d1f;
+    /* 🍎 Apple's primary text */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    /* Limit to 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.news-card-small .news-card-date {
+    font-size: 0.75rem;
+    /* 🍎 12px */
+    color: #6e6e73;
+    /* 🍎 Apple's secondary color */
+    font-weight: 400;
 }
 
 /* ========================================

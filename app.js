@@ -251,12 +251,19 @@ async function openArticleOverlay(articleId) {
     // 4. Trigger Animation (Next Tick) and scroll to top instantly
     requestAnimationFrame(() => {
         overlay.classList.add('active');
-        // Scroll to top instantly (no smooth animation)
-        window.scrollTo(0, 0);
+        overlay.classList.add('active');
 
         // Hide main page content to prevent it showing through
         const mainContent = document.querySelector('.main-content');
-        if (mainContent) mainContent.style.display = 'none';
+        if (mainContent && mainContent.style.display !== 'none') {
+            // Save scroll position ONLY if main content is currently visible
+            // This prevents overwriting with 0 if opening a 2nd overlay
+            window.mainPageScrollPosition = window.scrollY;
+            mainContent.style.display = 'none';
+        }
+
+        // Scroll overlay to top instantly (must be AFTER hiding main content to avoid jump)
+        window.scrollTo(0, 0);
 
         // Clear all OTHER overlays' content to free memory (for multi-layer overlays)
         const allOverlays = document.querySelectorAll('.article-overlay');
@@ -308,9 +315,20 @@ function lockBodyScroll() {
 function unlockBodyScroll() {
     // Remove overlay marker class
     document.body.classList.remove('overlay-open');
-    // Show main page content again
+
+    // Show main content again
     const mainContent = document.querySelector('.main-content');
-    if (mainContent) mainContent.style.display = '';
+    if (mainContent) {
+        mainContent.style.display = '';
+        // Restore scroll position instantly
+        if (typeof window.mainPageScrollPosition !== 'undefined') {
+            // Use 'instant' behavior to override any CSS scroll-behavior: smooth
+            window.scrollTo({
+                top: window.mainPageScrollPosition,
+                behavior: 'instant'
+            });
+        }
+    }
 }
 
 /**
