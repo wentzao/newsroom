@@ -117,14 +117,8 @@ html {
     overflow-x: hidden;
     overflow-y: scroll;
     /* Always show scrollbar area to prevent shift */
-
-    /* iOS Safari 邊緣滑動防護 */
-    overscroll-behavior: none;
-    /* 禁用所有方向的 overscroll */
     overscroll-behavior-x: none;
-    /* 特別禁用橫向（後退手勢）*/
-    -webkit-overflow-scrolling: touch;
-    /* iOS 流暢滾動 */
+    /* Prevent system back swipe */
 }
 
 body {
@@ -134,10 +128,6 @@ body {
     line-height: 1.5;
     overscroll-behavior-x: none;
     /* Prevent system back swipe */
-    overscroll-behavior: none;
-    /* iOS: Disable all overscroll */
-    touch-action: pan-y pinch-zoom;
-    /* iOS: Only allow vertical scroll, prevent horizontal swipe */
 
     /* Force overlay scrollbar on Windows/Chrome */
     width: 100vw;
@@ -716,10 +706,6 @@ body.overlay-open .site-header {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: none;
     /* Prevent system back swipe */
-    overscroll-behavior: none;
-    /* iOS: Disable all overscroll */
-    touch-action: pan-y pinch-zoom;
-    /* iOS: Only allow vertical scroll, prevent horizontal swipe */
 
     /* Slide-in Animation from Right */
     opacity: 0;
