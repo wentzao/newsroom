@@ -168,6 +168,10 @@ function buildArticleHtml(article) {
                 <div id="more-news-list" class="more-news-list">
                     <!-- Populated by JS -->
                 </div>
+                <!-- Back to Homepage Button -->
+                <div class="back-to-home-container">
+                    <button class="back-to-home-btn" onclick="closeAllOverlays()">回到消息主頁</button>
+                </div>
             </div>
         </section>
     `;
@@ -244,9 +248,25 @@ async function openArticleOverlay(articleId) {
     // 3. Append to body (Starts invisible/translated out via CSS)
     document.body.appendChild(overlay);
 
-    // 4. Trigger Animation (Next Tick)
+    // 4. Trigger Animation (Next Tick) and scroll to top instantly
     requestAnimationFrame(() => {
         overlay.classList.add('active');
+        // Scroll to top instantly (no smooth animation)
+        window.scrollTo(0, 0);
+
+        // Hide main page content to prevent it showing through
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) mainContent.style.display = 'none';
+
+        // Clear all OTHER overlays' content to free memory (for multi-layer overlays)
+        const allOverlays = document.querySelectorAll('.article-overlay');
+        allOverlays.forEach(otherOverlay => {
+            if (otherOverlay !== overlay) {
+                // ✅ Clear innerHTML completely to release memory
+                // Keep the overlay element itself for stack counting and history
+                otherOverlay.innerHTML = '';
+            }
+        });
     });
 
     // 5. Global Scroll Lock (Idempotent with padding fix)
@@ -274,27 +294,23 @@ async function openArticleOverlay(articleId) {
 }
 
 /**
- * Helper to Lock Body Scroll (Prevent Shift)
+ * Helper to Mark Overlay State (No longer locks scroll)
  */
 function lockBodyScroll() {
-    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.paddingRight = `${scrollBarWidth}px`;
-    // Also handle fixed/sticky header if needed
-    const header = document.querySelector('.site-header');
-    if (header) header.style.paddingRight = `${scrollBarWidth}px`;
-
-    document.body.classList.add('noscroll');
+    // No longer prevent body scroll - we want unified scrolling
+    // Just mark that an overlay is open for potential styling
+    document.body.classList.add('overlay-open');
 }
 
 /**
- * Helper to Unlock Body Scroll
+ * Helper to Unmark Overlay State
  */
 function unlockBodyScroll() {
-    document.body.style.paddingRight = '';
-    const header = document.querySelector('.site-header');
-    if (header) header.style.paddingRight = '';
-
-    document.body.classList.remove('noscroll');
+    // Remove overlay marker class
+    document.body.classList.remove('overlay-open');
+    // Show main page content again
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.style.display = '';
 }
 
 /**
@@ -341,6 +357,35 @@ function closeArticleOverlay(specificOverlay = null) {
     }
 }
 
+/**
+ * Close All Overlays and Return to Homepage
+ */
+function closeAllOverlays() {
+    const overlays = document.querySelectorAll('.article-overlay');
+
+    // Close all overlays with animation
+    overlays.forEach(overlay => {
+        overlay.classList.remove('active');
+    });
+
+    // Remove all overlays after animation
+    setTimeout(() => {
+        overlays.forEach(overlay => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+        });
+
+        // Restore main page
+        unlockBodyScroll();
+
+        // Update URL to homepage
+        const url = new URL(window.location);
+        url.searchParams.delete('id');
+        window.history.pushState({}, '', url);
+    }, 400);
+}
+
 // Handle Browser Back Button
 window.addEventListener('popstate', (event) => {
     // Current URL state
@@ -379,9 +424,19 @@ window.addEventListener('popstate', (event) => {
     } else {
         // Target is NOT in the stack. 
         // This implies a jump to a new article (or forward history where DOM was lost).
-        // Open it as a new layer.
-        openArticleOverlay(targetId);
+        // Otherwise do nothing — implies user went forward, not our job.
     }
+});
+
+// Make site-header clickable to return to homepage
+document.querySelector('.site-header').addEventListener('click', () => {
+    // Check if there are any overlays
+    const overlays = document.querySelectorAll('.article-overlay');
+    if (overlays.length > 0) {
+        // Close all overlays and return to homepage
+        closeAllOverlays();
+    }
+    // If already on homepage, do nothing
 });
 
 /**

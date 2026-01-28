@@ -57,6 +57,44 @@
     padding: 0;
 }
 
+/* ========================================
+   Unified Scrollbar
+   ======================================== */
+::-webkit-scrollbar {
+    width: 14px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(193, 193, 193, 0.6);
+    /* Semi-transparent for overlay effect */
+    border-radius: 7px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background-color .2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(150, 150, 150, 0.8);
+    /* Darker on hover */
+}
+
+/* Hide scrollbar when overlay is active */
+body.overlay-open {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+}
+
+body.overlay-open::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+}
+
 /* Scroll Reveal Animation */
 .reveal-on-scroll {
     opacity: 0;
@@ -74,6 +112,11 @@ html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+    /* Prevent horizontal scrollbar during overlay slide animation */
+    overflow-x: hidden;
+    overflow-y: scroll;
+    /* Always show scrollbar area to prevent shift */
     overscroll-behavior-x: none;
     /* Prevent system back swipe */
 }
@@ -85,6 +128,13 @@ body {
     line-height: 1.5;
     overscroll-behavior-x: none;
     /* Prevent system back swipe */
+
+    /* Force overlay scrollbar on Windows/Chrome */
+    width: 100vw;
+    overflow-x: hidden;
+
+    min-height: 100vh;
+    /* Ensure page is tall enough for content */
 }
 
 img {
@@ -109,14 +159,30 @@ img {
     padding: var(--spacing-xs) 0;
     /* Removed border-bottom as requested */
     border-bottom: none;
-    position: sticky;
+    position: fixed;
+    /* Changed from sticky to fixed to ensure always visible */
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
     background-color: rgba(255, 255, 255, 0.82);
     /* Whiter glass */
     backdrop-filter: saturate(180%) blur(20px);
     /* Apple-style vibrant glass */
     -webkit-backdrop-filter: saturate(180%) blur(20px);
+    transition: background-color 0.3s ease;
+    /* Smooth transition for color change */
+}
+
+/* Darker header when overlay is active */
+body.overlay-open .site-header {
+    background-color: rgba(245, 245, 245, 0.92);
+    /* Slightly darker and more opaque */
+}
+
+.site-header .container {
+    cursor: pointer;
+    /* Indicate clickable */
 }
 
 .site-title {
@@ -416,7 +482,15 @@ img {
 }
 
 /* ========================================
-   Footer
+   Main Content - Layout spacing for fixed header
+   ======================================== */
+.main-content {
+    padding-top: 60px;
+    /* Space for fixed site-header */
+}
+
+/* ========================================
+   Container
    ======================================== */
 .site-footer {
     padding: var(--spacing-xl) 0;
@@ -535,7 +609,7 @@ img {
     /* Smaller font size */
 }
 
-/* Load More Button */
+/* Load More Button - Original gray pill style */
 .load-more-container {
     display: flex;
     justify-content: center;
@@ -572,29 +646,73 @@ img {
     transform: scale(0.98);
 }
 
+/* Back to Home Button (same style as load-more) */
+.back-to-home-container {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--spacing-xl);
+    padding-bottom: var(--spacing-2xl);
+    width: 100%;
+}
+
+.back-to-home-btn {
+    background-color: #e8e8ed;
+    /* Light gray - same as load-more */
+    color: var(--color-text-primary);
+    border: none;
+    border-radius: 9999px;
+    /* Pill shape */
+    padding: 14px 40px;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-width: 160px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.back-to-home-btn:hover {
+    background-color: #d2d2d7;
+    transform: scale(1.02);
+}
+
+.back-to-home-btn:active {
+    transform: scale(0.98);
+}
+
 /* ========================================
    Article Overlay (SPA Transition)
    ======================================== */
 .article-overlay {
-    position: fixed;
+    position: absolute;
+    /* Changed from fixed to absolute - allows scrolling with body */
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
+    /* Cover full body height, not just viewport */
     z-index: 900;
     /* Below site-header (1000) */
     background-color: #ffffff;
     /* White background for article content */
-    /* White background for article content */
-    overflow-y: auto;
+
+    /* Removed overflow-y: auto - let body handle scrolling */
+    /* Removed scrollbar-gutter - body already has it */
+
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: none;
     /* Prevent system back swipe */
 
-    /* Simple Fade Transition */
+    /* Slide-in Animation from Right */
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transform: translateX(100%);
+    /* Start off-screen to the right */
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        visibility 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 
     padding-top: 60px;
     /* Space for header */
@@ -603,11 +721,14 @@ img {
 .article-overlay.active {
     opacity: 1;
     visibility: visible;
+    transform: translateX(0);
+    /* Slide into view */
 }
 
 /* Prevent body scroll when overlay is open */
 body.noscroll {
-    overflow: hidden;
+    /* Removed overflow: hidden - we want body to scroll with overlay content */
+    /* Keep this class for potential future use */
 }
 
 /* Ensure overlay content is centered and clean */
