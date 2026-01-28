@@ -2,20 +2,6 @@
    Article Detail Page Styles
    ======================================== */
 
-/* Back Link */
-.back-link {
-    display: inline-flex;
-    align-items: center;
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    font-size: var(--font-size-sm);
-    transition: color var(--transition-fast);
-}
-
-.back-link:hover {
-    color: var(--color-text-primary);
-}
-
 /* Article Main */
 .article-main {
     padding: var(--spacing-xl) 0 var(--spacing-2xl);
@@ -170,64 +156,15 @@
 
 
 
-/* Header Wrapper for Back Button alignment */
-/* Header Wrapper - Relative for absolute positioning of back button */
+/* Header Wrapper */
 .article-header-wrapper {
-    position: relative;
     margin-bottom: var(--spacing-xl);
 }
 
 .article-header-content {
-    /* Full width, not affected by button's flow */
     width: 100%;
 }
 
-/* Back Button Circle - Hanging on left */
-.back-btn-circle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background-color: #f5f5f7;
-    color: var(--color-text-secondary);
-    text-decoration: none;
-    transition: all var(--transition-fast);
-
-    /* Absolute positioning to hang outside */
-    position: absolute;
-    left: -56px;
-    /* 36px width + 20px gap */
-    top: 4px;
-    /* Align with top text roughly */
-}
-
-.back-btn-circle:hover {
-    background-color: #e5e5e7;
-    color: var(--color-text-primary);
-}
-
-.back-btn-circle svg {
-    margin-right: 2px;
-}
-
-/* Responsive adjustment for back button */
-@media (max-width: 800px) {
-    .article-header-wrapper {
-        display: flex;
-        flex-direction: column;
-        /* Stack vertically so title can flush left */
-        gap: var(--spacing-md);
-    }
-
-    .back-btn-circle {
-        position: static;
-        margin-top: 0;
-        align-self: flex-start;
-        /* Ensure it stays on the left */
-    }
-}
 
 /* Video Embedding */
 .content-video {

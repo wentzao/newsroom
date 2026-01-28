@@ -146,12 +146,6 @@ function buildArticleHtml(article) {
         <article class="article-container">
             <!-- Article Header -->
             <header class="article-header-wrapper">
-                <a href="#" class="back-btn-circle" id="overlay-back-btn" aria-label="返回">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                </a>
                 <div class="article-header-content">
                     <div class="article-meta">
                         <span class="article-tag">${article.tag || '公告'}</span>
@@ -182,8 +176,12 @@ function buildArticleHtml(article) {
 /**
  * Render More News items
  */
-function renderMoreNews(currentId) {
-    const container = document.getElementById('more-news-list');
+/**
+ * Render More News items into specific container
+ */
+function renderMoreNews(currentId, overlayContext) {
+    // Find list within the specific overlay context
+    const container = overlayContext.querySelector('.more-news-list');
     if (!container) return;
 
     // Use globally loaded items, filter current, take 3
@@ -217,16 +215,41 @@ function renderMoreNews(currentId) {
 }
 
 /**
- * SPA Overlay Logic
+ * SPA Overlay Logic - Stacked Implementation
  */
-async function openArticleOverlay(articleId) {
-    const overlay = document.getElementById('article-overlay');
-    if (!overlay) return;
+let closeTimer = null; // Global timer isn't enough for stack, but we keep simple debounce if needed
 
-    // Show overlay with loading state or skeleton if needed
-    // For now, assume fast load or simple placeholder
+async function openArticleOverlay(articleId) {
+    // Prevent duplicate open if already top
+    const existingOverlays = document.querySelectorAll('.article-overlay');
+    if (existingOverlays.length > 0) {
+        const top = existingOverlays[existingOverlays.length - 1];
+        if (top.dataset.id === articleId) return;
+    }
+
+    // 1. Create NEW overlay element
+    const overlay = document.createElement('div');
+    overlay.className = 'article-overlay';
+    // Add specific ID for debugging or checking, though we rely on class and DOM order
+    overlay.dataset.id = articleId;
+
+    // Reset Scroll & Styles
+    overlay.scrollTop = 0;
+    overlay.style.transition = '';
+    overlay.style.transform = '';
+
+    // 2. Set Initial Content (Loading)
     overlay.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
-    overlay.classList.add('active');
+
+    // 3. Append to body (Starts invisible/translated out via CSS)
+    document.body.appendChild(overlay);
+
+    // 4. Trigger Animation (Next Tick)
+    requestAnimationFrame(() => {
+        overlay.classList.add('active');
+    });
+
+    // 5. Global Scroll Lock (Idempotent)
     document.body.classList.add('noscroll');
 
     try {
@@ -237,22 +260,12 @@ async function openArticleOverlay(articleId) {
         // Render content
         overlay.innerHTML = buildArticleHtml(article);
 
-        // Render More News
-        renderMoreNews(articleId);
+        // Render More News (Scoped to this overlay)
+        renderMoreNews(articleId, overlay);
 
-        // Bind back button
-        const backBtn = document.getElementById('overlay-back-btn');
-        if (backBtn) {
-            backBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                closeArticleOverlay();
-            });
-        }
-
-        // Swipe to close logic
+        // Swipe to close logic (Specific to THIS overlay)
         let touchStartX = 0;
         let touchStartY = 0;
-        let currentX = 0;
         let isDragging = false;
         let isScrolling = false;
 
@@ -261,7 +274,7 @@ async function openArticleOverlay(articleId) {
             touchStartY = e.touches[0].clientY;
             isDragging = false;
             isScrolling = false;
-            overlay.style.transition = 'none'; // Disable transition for 1:1 movement
+            overlay.style.transition = 'none';
         }, { passive: true });
 
         overlay.addEventListener('touchmove', (e) => {
@@ -272,7 +285,6 @@ async function openArticleOverlay(articleId) {
             const deltaX = touchX - touchStartX;
             const deltaY = Math.abs(touchY - touchStartY);
 
-            // Determine if horizontal swipe or vertical scroll
             if (!isDragging && deltaX > 10 && deltaX > deltaY) {
                 isDragging = true;
             } else if (!isDragging && deltaY > 10) {
@@ -280,7 +292,7 @@ async function openArticleOverlay(articleId) {
             }
 
             if (isDragging && deltaX > 0) {
-                e.preventDefault(); // Prevent browser navigation
+                e.preventDefault();
                 overlay.style.transform = `translateX(${deltaX}px)`;
             }
         }, { passive: false });
@@ -288,53 +300,127 @@ async function openArticleOverlay(articleId) {
         overlay.addEventListener('touchend', (e) => {
             if (isDragging) {
                 const deltaX = e.changedTouches[0].clientX - touchStartX;
-                const threshold = window.innerWidth * 0.3; // Close if dragged 30% width
+                const threshold = window.innerWidth * 0.3;
 
                 if (deltaX > threshold) {
-                    closeArticleOverlay();
+                    closeArticleOverlay(overlay);
                 } else {
-                    // Snap back
                     overlay.style.transition = 'transform 0.3s ease-out';
                     overlay.style.transform = 'translateX(0)';
                 }
             }
-            // Reset flags
             isDragging = false;
             isScrolling = false;
-            // Restore transition if we didn't close (close() handles its own)
-            if (overlay.classList.contains('active')) {
-                // Wait for snap back if needed, but close() resets it anyway
-            }
         });
+
     } catch (error) {
         console.error('Failed to load article', error);
-        overlay.innerHTML = '<div class="error-message"><p>無法載入文章</p><button onclick="closeArticleOverlay()">關閉</button></div>';
+        overlay.innerHTML = '<div class="error-message"><p>無法載入文章</p><button class="close-btn-error">關閉</button></div>';
+        const closeBtn = overlay.querySelector('.close-btn-error');
+        if (closeBtn) closeBtn.onclick = () => closeArticleOverlay(overlay);
     }
 }
 
-function closeArticleOverlay() {
-    const overlay = document.getElementById('article-overlay');
-    if (overlay) {
-        overlay.classList.remove('active');
-        // Clear content after transition to save memory/clean state
-        setTimeout(() => {
-            overlay.innerHTML = '';
-        }, 400);
-    }
-    document.body.classList.remove('noscroll');
-
-    // Reset URL if we pushed state
-    const url = new URL(window.location);
-    if (url.searchParams.has('id')) {
-        // Go back in history if we pushed a state
-        if (history.state && history.state.articleOpen) {
-            history.back();
-        } else {
-            // Just replace
-            const newUrl = window.location.pathname;
-            history.replaceState(null, '', newUrl);
+/**
+ * Close Specific Overlay (or top one if not specified)
+ */
+function closeArticleOverlay(specificOverlay = null) {
+    // If no specific overlay passed, FIND the top-most one
+    let overlay = specificOverlay;
+    if (!overlay) {
+        const overlays = document.querySelectorAll('.article-overlay');
+        if (overlays.length > 0) {
+            overlay = overlays[overlays.length - 1]; // Top-most
         }
     }
+
+    if (overlay) {
+        // Animate Out
+        overlay.classList.remove('active');
+
+        // Wait for transition then Remove from DOM
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+
+            // Allow scroll ONLY if no overlays left
+            const remaining = document.querySelectorAll('.article-overlay');
+            if (remaining.length === 0) {
+                document.body.classList.remove('noscroll');
+            }
+        }, 400); // Match CSS transition duration
+
+        // Handle URL History Sync
+        // If we just closed the top overlay, we should essentially "Pop" the history logic
+        // But typically the user initiates this via Back Button (handled in popstate) 
+        // OR via UI Click (which needs to update history).
+
+        // If we are NOT in a popstate event (implied), we should go back.
+        // Checking if ID matches current URL ID is a good heuristic.
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('id') === overlay.dataset.id) {
+            history.back();
+        }
+    }
+}
+
+// Handle Browser Back Button
+window.addEventListener('popstate', (event) => {
+    // Current URL state
+    const params = new URLSearchParams(window.location.search);
+    const targetId = params.get('id');
+
+    // Current DOM state - Get ALL overlays (active or implicitly in stack)
+    // We treat the DOM order as the truth of the stack.
+    const allOverlays = Array.from(document.querySelectorAll('.article-overlay'));
+
+    if (!targetId) {
+        // Target is Home. We must ensure NO overlays are visible.
+        // Close ALL overlays.
+        allOverlays.forEach(overlay => closeOverlayInternal(overlay));
+        return;
+    }
+
+    // Check if targetId exists in our current stack
+    // We find the index of the overlay that represents the target URL
+    const targetIndex = allOverlays.findIndex(overlay => overlay.dataset.id === targetId);
+
+    if (targetIndex !== -1) {
+        // Target IS in the stack.
+        // We want to return TO this layer.
+        // Ideally, this means closing everything ON TOP of it (indices > targetIndex).
+
+        // Loop from the top down to the target (exclusive)
+        for (let i = allOverlays.length - 1; i > targetIndex; i--) {
+            closeOverlayInternal(allOverlays[i]);
+        }
+
+        // Just in case, ensure the target is marked active (should be already)
+        if (!allOverlays[targetIndex].classList.contains('active')) {
+            allOverlays[targetIndex].classList.add('active');
+        }
+    } else {
+        // Target is NOT in the stack. 
+        // This implies a jump to a new article (or forward history where DOM was lost).
+        // Open it as a new layer.
+        openArticleOverlay(targetId);
+    }
+});
+
+/**
+ * Internal Close Helper (Does NOT touch History)
+ * Used by popstate to reflect state change visually
+ */
+function closeOverlayInternal(overlay) {
+    if (!overlay) return;
+    overlay.classList.remove('active');
+    setTimeout(() => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (document.querySelectorAll('.article-overlay').length === 0) {
+            document.body.classList.remove('noscroll');
+        }
+    }, 400);
 }
 
 
