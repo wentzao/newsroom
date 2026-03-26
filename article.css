@@ -145,7 +145,7 @@
 
 /* Rich text from editor — match Quill's margin:0 on p */
 .article-content .rich-text { margin-bottom: 1.2rem; line-height: 1.7; }
-.article-content .rich-text p { margin: 0; }
+.article-content .rich-text p { margin: 0; line-height: 1.7; min-height: 1em; }
 .article-content .rich-text ul,
 .article-content .rich-text ol { padding-left: 1.5em; margin: 0.2em 0; }
 
