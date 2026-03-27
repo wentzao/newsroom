@@ -66,7 +66,8 @@ function renderContentBlocks(blocks) {
 
             case 'video':
                 // Simple YouTube ID extraction
-                const ytMatch = block.url && block.url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+                const videoUrl = block.youtubeUrl || block.url;
+                const ytMatch = videoUrl && videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
                 const youtubeId = ytMatch ? ytMatch[1] : null;
 
                 if (youtubeId) {
@@ -92,7 +93,7 @@ function renderContentBlocks(blocks) {
                     <div class="content-link-wrapper">
                         <a href="${block.url}" target="_blank" rel="noopener noreferrer" class="content-link">
                             <span class="link-icon">🔗</span>
-                            <span class="link-text">${block.label || block.url}</span>
+                            <span class="link-text">${block.title || block.label || block.url}</span>
                         </a>
                     </div>
                 `;
