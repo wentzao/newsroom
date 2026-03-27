@@ -148,6 +148,9 @@
 .article-content .rich-text p { margin: 0; line-height: 1.7; min-height: 1em; }
 .article-content .rich-text ul,
 .article-content .rich-text ol { padding-left: 1.5em; margin: 0.2em 0; }
+.article-content .rich-text ul { list-style: disc; }
+.article-content .rich-text ol { list-style: decimal; }
+.article-content .rich-text li { display: list-item; }
 
 /* Responsive */
 @media (max-width: 640px) {
