@@ -2,6 +2,12 @@
  * Article Detail Page - Fetches and displays a single news article
  */
 
+// Prevent browser from restoring previous page's scroll position
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
 const API_URL = 'https://kcb.wentzao.com/api/news/';
 const PLACEHOLDER_IMAGE = 'assets/backdrop.png';
 
@@ -17,9 +23,7 @@ function getArticleId() {
     }
 
     // Fallback to sessionStorage
-    const idFromStorage = sessionStorage.getItem('currentArticleId');
-    console.log('ID from URL missing, checking storage:', idFromStorage);
-    return idFromStorage;
+    return sessionStorage.getItem('currentArticleId');
 }
 
 /**
@@ -48,13 +52,14 @@ function renderContentBlocks(blocks) {
     return blocks.map(block => {
         switch (block.type) {
             case 'text':
-                // If content is HTML (from rich text editor), render directly
+                // Rich text HTML from Quill editor — render directly
+                // CSS handles paragraph spacing (margin:0) and empty line visibility (p:empty::after)
                 if (/<[a-z][\s\S]*>/i.test(block.content)) {
-                    return `<div class="rich-text">${block.content}</div>`;
+                    return block.content;
                 }
-                // Otherwise convert newlines to paragraphs
-                const paragraphs = block.content.split('\n').filter(p => p.trim());
-                return paragraphs.map(p => `<p>${p}</p>`).join('');
+                // Plain text fallback — convert newlines to paragraphs
+                return block.content.split('\n').filter(p => p.trim())
+                    .map(p => `<p>${p}</p>`).join('');
 
             case 'image':
                 return `
@@ -160,23 +165,10 @@ function showError(message) {
 }
 
 /**
- * Copy current page link
- */
-function copyLink() {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-        alert('連結已複製！');
-    }).catch(() => {
-        alert('無法複製連結');
-    });
-}
-
-/**
  * Fetch and display article
  */
 async function fetchArticle() {
     const articleId = getArticleId();
-
-    console.log('Article ID from URL:', articleId);
 
     if (!articleId) {
         showError('未指定文章 ID');
@@ -186,20 +178,10 @@ async function fetchArticle() {
     // Start fetching more news in parallel
     fetchMoreNews(articleId);
 
-    const apiUrl = API_URL + articleId;
-    console.log('Fetching from:', apiUrl);
-
     try {
-        const response = await fetch(apiUrl);
-        console.log('Response status:', response.status);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const article = await response.json();
-        console.log('Article data:', article);
-        renderArticle(article);
+        const response = await fetch(API_URL + articleId);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        renderArticle(await response.json());
 
     } catch (error) {
         console.error('Failed to fetch article:', error);

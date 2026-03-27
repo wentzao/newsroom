@@ -16,11 +16,6 @@
     padding: 0 var(--spacing-lg);
 }
 
-/* Article Header */
-.article-header {
-    margin-bottom: var(--spacing-xl);
-}
-
 .article-meta {
     display: flex;
     flex-direction: column;
@@ -47,52 +42,24 @@
     margin-bottom: var(--spacing-lg);
 }
 
-.article-subtitle {
-    font-size: var(--font-size-lg);
-    color: var(--color-text-secondary);
-    line-height: 1.5;
-    margin-bottom: var(--spacing-lg);
-}
-
-/* Share Buttons */
-.share-buttons {
-    display: flex;
-    gap: var(--spacing-sm);
-    padding-bottom: var(--spacing-xl);
-    /* Border removed */
-    margin-bottom: var(--spacing-xl);
-}
-
-.share-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: var(--color-card-bg);
-    border-radius: 50%;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.share-btn:hover {
-    background: var(--color-border);
-    color: var(--color-text-primary);
-}
-
 /* Article Content */
 .article-content {
     font-size: 1.0625rem;
     /* 17px */
     letter-spacing: -0.022em;
-    line-height: 1.6;
+    line-height: 1.7;
     color: var(--color-text-primary);
 }
 
-.article-content > p {
-    margin-bottom: 1.2rem;
+/* Quill HTML: paragraphs have zero margin, spacing comes from empty <p></p> lines */
+.article-content p {
+    margin: 0;
+}
+
+/* Empty <p></p> (Quill empty lines) — force visible height via hidden character */
+.article-content p:empty::after {
+    content: '\00a0';
+    visibility: hidden;
 }
 
 .article-content .content-image {
@@ -121,11 +88,6 @@
     border-radius: var(--radius-lg);
 }
 
-.article-cover.fallback img {
-    opacity: 0.5;
-    /* Lighter for fallback image */
-}
-
 .article-cover figcaption {
     margin-top: var(--spacing-sm);
     font-size: var(--font-size-sm);
@@ -137,20 +99,17 @@
 .article-author {
     margin-top: var(--spacing-2xl);
     padding-top: var(--spacing-xl);
-    /* Border removed */
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     text-align: right;
 }
 
-/* Rich text from editor — match Quill's margin:0 on p */
-.article-content .rich-text { margin-bottom: 1.2rem; line-height: 1.7; }
-.article-content .rich-text p { margin: 0; line-height: 1.7; min-height: 1em; }
-.article-content .rich-text ul,
-.article-content .rich-text ol { padding-left: 1.5em; margin: 0.2em 0; }
-.article-content .rich-text ul { list-style: disc; }
-.article-content .rich-text ol { list-style: decimal; }
-.article-content .rich-text li { display: list-item; }
+/* Lists (Quill output) */
+.article-content ul,
+.article-content ol { padding-left: 1.5em; margin: 0.2em 0; }
+.article-content ul { list-style: disc; }
+.article-content ol { list-style: decimal; }
+.article-content li { display: list-item; }
 
 /* Responsive */
 @media (max-width: 640px) {
@@ -163,8 +122,6 @@
     }
 }
 
-
-
 /* Header Wrapper */
 .article-header-wrapper {
     margin-bottom: var(--spacing-xl);
@@ -173,7 +130,6 @@
 .article-header-content {
     width: 100%;
 }
-
 
 /* Video Embedding */
 .content-video {
