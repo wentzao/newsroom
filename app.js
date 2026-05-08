@@ -69,7 +69,8 @@ function renderContentBlocks(blocks) {
 
             case 'video':
                 // Simple YouTube ID extraction
-                const ytMatch = block.url && block.url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+                const videoUrl = block.youtubeUrl || block.url;
+                const ytMatch = videoUrl && videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
                 const youtubeId = ytMatch ? ytMatch[1] : null;
 
                 if (youtubeId) {
