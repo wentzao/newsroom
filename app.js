@@ -55,9 +55,13 @@ function renderContentBlocks(blocks) {
     return blocks.map(block => {
         switch (block.type) {
             case 'text':
-                // Convert newlines to paragraphs
-                const paragraphs = block.content.split('\n').filter(p => p.trim());
-                return paragraphs.map(p => `<p>${p}</p>`).join('');
+                // Rich text HTML from Quill editor — render directly
+                if (/<[a-z][\s\S]*>/i.test(block.content)) {
+                    return block.content;
+                }
+                // Plain text fallback — convert newlines to paragraphs
+                return block.content.split('\n').filter(p => p.trim())
+                    .map(p => `<p>${p}</p>`).join('');
 
             case 'image':
                 return `

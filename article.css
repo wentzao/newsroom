@@ -111,6 +111,25 @@
 .article-content ol { list-style: decimal; }
 .article-content li { display: list-item; }
 
+/* Quill format classes — snow.css scopes these to .ql-editor, so we re-declare
+   them here so they apply to rendered article HTML. */
+.article-content .ql-size-small { font-size: 0.75em; }
+.article-content .ql-size-large { font-size: 1.5em; }
+.article-content .ql-size-huge  { font-size: 2.5em; }
+
+.article-content .ql-align-center  { text-align: center; }
+.article-content .ql-align-right   { text-align: right; }
+.article-content .ql-align-justify { text-align: justify; }
+
+.article-content .ql-indent-1 { padding-left: 3em; }
+.article-content .ql-indent-2 { padding-left: 6em; }
+.article-content .ql-indent-3 { padding-left: 9em; }
+.article-content .ql-indent-4 { padding-left: 12em; }
+.article-content .ql-indent-5 { padding-left: 15em; }
+.article-content .ql-indent-6 { padding-left: 18em; }
+.article-content .ql-indent-7 { padding-left: 21em; }
+.article-content .ql-indent-8 { padding-left: 24em; }
+
 /* Responsive */
 @media (max-width: 640px) {
     .article-title {
