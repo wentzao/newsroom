@@ -808,7 +808,9 @@ window.addEventListener('popstate', (event) => {
 });
 
 // Make site-header clickable to return to homepage
-document.querySelector('.site-header').addEventListener('click', () => {
+document.querySelector('.site-header').addEventListener('click', (event) => {
+    if (event.target.closest('.site-home-btn')) return;
+
     // Check if there are any overlays
     const overlays = document.querySelectorAll('.article-overlay');
     if (overlays.length > 0) {
