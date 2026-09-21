@@ -465,8 +465,19 @@ function buildArticleHtml(article) {
                 </div>
                 <!-- Back to Homepage Button -->
                 <div class="back-to-home-container">
-                    <button class="back-to-home-btn" onclick="closeAllOverlays()">回到消息主頁</button>
-                    <a class="back-to-site-btn" href="https://kindergarten.wentzao.com/">回到官網</a>
+                    <button class="back-to-home-btn" onclick="closeAllOverlays()">
+                        <svg class="back-navigation-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M19 12H5M11 18l-6-6 6-6" />
+                        </svg>
+                        回到消息主頁
+                    </button>
+                    <a class="back-to-site-btn" href="https://kindergarten.wentzao.com/">
+                        <svg class="back-navigation-icon back-site-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" />
+                            <path d="M9 21v-7h6v7" />
+                        </svg>
+                        回到文藻官網
+                    </a>
                 </div>
             </div>
         </section>

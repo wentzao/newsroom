@@ -772,6 +772,17 @@ body.overlay-open .site-header {
     text-decoration: none;
 }
 
+.back-navigation-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-right: 0.45rem;
+    flex: 0 0 auto;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .back-to-home-btn:hover,
 .back-to-site-btn:hover {
     background-color: #d2d2d7;
