@@ -32,12 +32,18 @@ function getAbsoluteImageUrl(imageUrl) {
     }
 }
 
-function setShareStatus(overlay, message) {
-    const status = overlay.querySelector('.share-status');
-    if (status) status.textContent = message;
+function setShareStatus(overlay, message, sourceButton = null) {
+    const actionGroup = sourceButton?.closest('.article-share-actions');
+    const statuses = actionGroup
+        ? [actionGroup.querySelector('.share-status')]
+        : [...overlay.querySelectorAll('.share-status')];
+
+    statuses.filter(Boolean).forEach(status => {
+        status.textContent = message;
+    });
 }
 
-async function shareWithSystemSheet(article, overlay) {
+async function shareWithSystemSheet(article, overlay, sourceButton) {
     const shareData = {
         title: article.title,
         text: `${article.tag || '公告'}｜${article.title}`,
@@ -47,16 +53,16 @@ async function shareWithSystemSheet(article, overlay) {
     try {
         if (navigator.share) {
             await navigator.share(shareData);
-            setShareStatus(overlay, '已開啟分享選單。');
+            setShareStatus(overlay, '已開啟分享選單。', sourceButton);
             return;
         }
 
         await navigator.clipboard.writeText(shareData.url);
-        setShareStatus(overlay, '連結已複製，可貼到要分享的地方。');
+        setShareStatus(overlay, '連結已複製，可貼到要分享的地方。', sourceButton);
     } catch (error) {
         if (error.name !== 'AbortError') {
             console.error('System sharing failed', error);
-            setShareStatus(overlay, '目前無法分享，請稍後再試。');
+            setShareStatus(overlay, '目前無法分享，請稍後再試。', sourceButton);
         }
     }
 }
@@ -134,14 +140,14 @@ function buildLineFlexMessage(article) {
     };
 }
 
-async function shareToLine(article, overlay) {
+async function shareToLine(article, overlay, sourceButton) {
     const liffId = getLiffId();
     if (!liffId) {
-        setShareStatus(overlay, '請先在 index.html 填入 LIFF ID，才能傳送 Flex Message。');
+        setShareStatus(overlay, '請先在 index.html 填入 LIFF ID，才能傳送 Flex Message。', sourceButton);
         return;
     }
 
-    const button = overlay.querySelector('.line-share-btn');
+    const button = sourceButton;
     button?.setAttribute('aria-busy', 'true');
     button?.setAttribute('disabled', '');
 
@@ -150,15 +156,15 @@ async function shareToLine(article, overlay) {
         await liff.init({ liffId });
 
         if (!liff.isInClient() || !liff.isApiAvailable('shareTargetPicker')) {
-            setShareStatus(overlay, '請在 LINE App 內開啟此頁，再傳送 Flex Message。');
+            setShareStatus(overlay, '請在 LINE App 內開啟此頁，再傳送 Flex Message。', sourceButton);
             return;
         }
 
         const result = await liff.shareTargetPicker([buildLineFlexMessage(article)]);
-        setShareStatus(overlay, result ? '已傳送 LINE Flex Message。' : '已取消 LINE 分享。');
+        setShareStatus(overlay, result ? '已傳送 LINE Flex Message。' : '已取消 LINE 分享。', sourceButton);
     } catch (error) {
         console.error('LINE sharing failed', error);
-        setShareStatus(overlay, 'LINE 分享失敗，請確認 LIFF ID 與 App 設定。');
+        setShareStatus(overlay, 'LINE 分享失敗，請確認 LIFF ID 與 App 設定。', sourceButton);
     } finally {
         button?.removeAttribute('aria-busy');
         button?.removeAttribute('disabled');
@@ -166,11 +172,15 @@ async function shareToLine(article, overlay) {
 }
 
 function bindShareControls(overlay, article) {
-    overlay.querySelector('.system-share-btn')?.addEventListener('click', () => {
-        shareWithSystemSheet(article, overlay);
+    overlay.querySelectorAll('.system-share-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            shareWithSystemSheet(article, overlay, button);
+        });
     });
-    overlay.querySelector('.line-share-btn')?.addEventListener('click', () => {
-        shareToLine(article, overlay);
+    overlay.querySelectorAll('.line-share-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            shareToLine(article, overlay, button);
+        });
     });
 }
 
@@ -282,6 +292,23 @@ function renderContentBlocks(blocks) {
 /**
  * Render full article HTML for the overlay
  */
+function buildArticleShareActions(position) {
+    return `
+        <div class="article-share-actions article-share-actions-${position}" aria-label="分享這則消息">
+            <button class="article-share-btn system-share-btn" type="button" aria-label="分享這則消息">
+                <svg class="share-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 15.5V3.5M7.5 8 12 3.5 16.5 8M5 12.5v6.25c0 .69.56 1.25 1.25 1.25h11.5c.69 0 1.25-.56 1.25-1.25V12.5" />
+                </svg>
+                <span>分享</span>
+            </button>
+            <button class="article-share-btn line-share-btn" type="button" aria-label="透過 LINE 分享">
+                <span>透過 LINE 分享</span>
+            </button>
+            <p class="share-status" role="status" aria-live="polite"></p>
+        </div>
+    `;
+}
+
 function buildArticleHtml(article) {
     // Build content
     let contentHtml = '';
@@ -325,15 +352,7 @@ function buildArticleHtml(article) {
                         <span class="article-date">${formatDate(article.publishAt)}</span>
                     </div>
                     <h1 class="article-title">${article.title}</h1>
-                    <div class="article-share-actions" aria-label="分享這則消息">
-                        <button class="article-share-btn system-share-btn" type="button">
-                            <span aria-hidden="true">⇧</span> 分享
-                        </button>
-                        <button class="article-share-btn line-share-btn" type="button">
-                            <span aria-hidden="true">LINE</span> 傳送
-                        </button>
-                        <p class="share-status" role="status" aria-live="polite"></p>
-                    </div>
+                    ${buildArticleShareActions('header')}
                 </div>
             </header>
 
@@ -341,6 +360,9 @@ function buildArticleHtml(article) {
             <div id="article-content" class="article-content">
                 ${contentHtml}
             </div>
+
+            <!-- Repeat the action at the end of a long article. -->
+            ${buildArticleShareActions('bottom')}
         </article>
         
         <!-- More News Section -->

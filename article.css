@@ -53,6 +53,10 @@
 
 .article-share-btn {
     appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
     min-height: 44px;
     border: 1px solid var(--color-border);
     border-radius: 999px;
@@ -64,6 +68,16 @@
     font-weight: 700;
     cursor: pointer;
     transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.share-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .article-share-btn:hover {
@@ -101,6 +115,12 @@
     min-height: 1.3em;
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
+}
+
+.article-share-actions-bottom {
+    margin: var(--spacing-2xl) 0 0;
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid #e5e5ea;
 }
 
 /* Article Content */
