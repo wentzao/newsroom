@@ -384,9 +384,9 @@ function renderContentBlocks(blocks) {
 /**
  * Render full article HTML for the overlay
  */
-function buildArticleShareActions(position) {
+function buildArticleShareActions() {
     return `
-        <div class="article-share-actions article-share-actions-${position}" aria-label="分享這則消息">
+        <div class="article-share-actions article-share-actions-bottom" aria-label="分享這則消息">
             <button class="article-share-btn system-share-btn" type="button" aria-label="分享這則消息">
                 <svg class="share-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M12 15.5V3.5M7.5 8 12 3.5 16.5 8M5 12.5v6.25c0 .69.56 1.25 1.25 1.25h11.5c.69 0 1.25-.56 1.25-1.25V12.5" />
@@ -444,7 +444,6 @@ function buildArticleHtml(article) {
                         <span class="article-date">${formatDate(article.publishAt)}</span>
                     </div>
                     <h1 class="article-title">${article.title}</h1>
-                    ${buildArticleShareActions('header')}
                 </div>
             </header>
 
@@ -454,7 +453,7 @@ function buildArticleHtml(article) {
             </div>
 
             <!-- Repeat the action at the end of a long article. -->
-            ${buildArticleShareActions('bottom')}
+            ${buildArticleShareActions()}
         </article>
         
         <!-- More News Section -->
@@ -467,6 +466,7 @@ function buildArticleHtml(article) {
                 <!-- Back to Homepage Button -->
                 <div class="back-to-home-container">
                     <button class="back-to-home-btn" onclick="closeAllOverlays()">回到消息主頁</button>
+                    <a class="back-to-site-btn" href="https://kindergarten.wentzao.com/">回到官網</a>
                 </div>
             </div>
         </section>

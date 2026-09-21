@@ -42,7 +42,7 @@
     margin-bottom: var(--spacing-lg);
 }
 
-/* Share controls remain close to the article title, where the shared context is clear. */
+/* Share controls appear once, after the article, so readers can act after finishing it. */
 .article-share-actions {
     display: flex;
     flex-wrap: wrap;
@@ -118,9 +118,14 @@
 }
 
 .article-share-actions-bottom {
+    justify-content: flex-end;
     margin: var(--spacing-2xl) 0 0;
     padding-top: var(--spacing-xl);
     border-top: 1px solid #e5e5ea;
+}
+
+.article-share-actions-bottom .share-status {
+    text-align: right;
 }
 
 /* Article Content */

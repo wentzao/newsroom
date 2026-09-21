@@ -708,13 +708,17 @@ body.overlay-open .site-header {
 /* Back to Home Button (same style as load-more) */
 .back-to-home-container {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
     justify-content: center;
     margin-top: var(--spacing-xl);
     padding-bottom: var(--spacing-2xl);
     width: 100%;
 }
 
-.back-to-home-btn {
+.back-to-home-btn,
+.back-to-site-btn {
     background-color: #e8e8ed;
     /* Light gray - same as load-more */
     color: var(--color-text-primary);
@@ -730,14 +734,17 @@ body.overlay-open .site-header {
     display: flex;
     justify-content: center;
     align-items: center;
+    text-decoration: none;
 }
 
-.back-to-home-btn:hover {
+.back-to-home-btn:hover,
+.back-to-site-btn:hover {
     background-color: #d2d2d7;
     transform: scale(1.02);
 }
 
-.back-to-home-btn:active {
+.back-to-home-btn:active,
+.back-to-site-btn:active {
     transform: scale(0.98);
 }
 
