@@ -26,6 +26,48 @@ function getArticleId() {
     return sessionStorage.getItem('currentArticleId');
 }
 
+function getLinkDetails(block) {
+    const url = block.url || '';
+    let domain = '';
+
+    try {
+        domain = new URL(url).hostname.replace(/^www\./i, '');
+    } catch (error) {
+        // Leave the domain empty for a malformed legacy URL; the label still
+        // gives the reader a usable indication of the destination.
+    }
+
+    return {
+        url,
+        domain,
+        title: block.title || block.label || block.caption || block.description || domain || url
+    };
+}
+
+function renderLinkBlock(block) {
+    const { url, title, domain } = getLinkDetails(block);
+
+    return `
+        <div class="content-link-wrapper">
+            <a href="${url}" target="_blank" rel="noopener noreferrer" class="content-link" aria-label="開啟外部連結：${title}">
+                <span class="content-link-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M10.6 13.4a4 4 0 0 0 5.66 0l2.12-2.12a4 4 0 0 0-5.66-5.66l-1.21 1.2" />
+                        <path d="M13.4 10.6a4 4 0 0 0-5.66 0l-2.12 2.12a4 4 0 1 0 5.66 5.66l1.21-1.2" />
+                    </svg>
+                </span>
+                <span class="content-link-details">
+                    <span class="content-link-title">${title}</span>
+                    ${domain ? `<span class="content-link-domain">${domain}</span>` : ''}
+                </span>
+                <svg class="content-link-external" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M14 5h5v5M19 5l-8 8M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" />
+                </svg>
+            </a>
+        </div>
+    `;
+}
+
 /**
  * Format date as "YYYY 年 M 月 D 日"
  */
@@ -94,14 +136,7 @@ function renderContentBlocks(blocks) {
                 return '';
 
             case 'link':
-                return `
-                    <div class="content-link-wrapper">
-                        <a href="${block.url}" target="_blank" rel="noopener noreferrer" class="content-link">
-                            <span class="link-icon">🔗</span>
-                            <span class="link-text">${block.title || block.label || block.url}</span>
-                        </a>
-                    </div>
-                `;
+                return renderLinkBlock(block);
 
             default:
                 return '';
