@@ -5,6 +5,174 @@
 
 const API_URL = 'https://kcb.wentzao.com/api/news/';
 const PLACEHOLDER_IMAGE = 'assets/backdrop.png';
+const CANONICAL_ORIGIN = 'https://newsroom.wentzao.com';
+const LEFT_EDGE_SWIPE_ZONE = 32;
+const LEFT_EDGE_SWIPE_DISTANCE = 96;
+
+function getLiffId() {
+    return document.querySelector('meta[name="liff-id"]')?.content.trim() || '';
+}
+
+function getArticleUrl(articleId) {
+    return `${CANONICAL_ORIGIN}/?id=${encodeURIComponent(articleId)}`;
+}
+
+function getLiffArticleUrl(articleId) {
+    const liffId = getLiffId();
+    return liffId
+        ? `https://liff.line.me/${encodeURIComponent(liffId)}?id=${encodeURIComponent(articleId)}`
+        : getArticleUrl(articleId);
+}
+
+function getAbsoluteImageUrl(imageUrl) {
+    try {
+        return new URL(imageUrl || PLACEHOLDER_IMAGE, CANONICAL_ORIGIN).href;
+    } catch (error) {
+        return new URL(PLACEHOLDER_IMAGE, CANONICAL_ORIGIN).href;
+    }
+}
+
+function setShareStatus(overlay, message) {
+    const status = overlay.querySelector('.share-status');
+    if (status) status.textContent = message;
+}
+
+async function shareWithSystemSheet(article, overlay) {
+    const shareData = {
+        title: article.title,
+        text: `${article.tag || '公告'}｜${article.title}`,
+        url: getArticleUrl(article.id)
+    };
+
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+            setShareStatus(overlay, '已開啟分享選單。');
+            return;
+        }
+
+        await navigator.clipboard.writeText(shareData.url);
+        setShareStatus(overlay, '連結已複製，可貼到要分享的地方。');
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error('System sharing failed', error);
+            setShareStatus(overlay, '目前無法分享，請稍後再試。');
+        }
+    }
+}
+
+function loadLiffSdk() {
+    if (window.liff) return Promise.resolve(window.liff);
+
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+        script.async = true;
+        script.onload = () => resolve(window.liff);
+        script.onerror = () => reject(new Error('LIFF SDK failed to load'));
+        document.head.appendChild(script);
+    });
+}
+
+function buildLineFlexMessage(article) {
+    const imageUrl = getAbsoluteImageUrl(getEffectiveCoverImage(article));
+    const articleUrl = getLiffArticleUrl(article.id);
+
+    return {
+        type: 'flex',
+        altText: `${article.tag || '公告'}｜${article.title}`,
+        contents: {
+            type: 'bubble',
+            hero: {
+                type: 'image',
+                url: imageUrl,
+                size: 'full',
+                aspectRatio: '20:13',
+                aspectMode: 'cover',
+                action: { type: 'uri', uri: articleUrl }
+            },
+            body: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                contents: [
+                    {
+                        type: 'text',
+                        text: article.tag || '公告',
+                        size: 'xs',
+                        color: '#6E6E73',
+                        weight: 'bold'
+                    },
+                    {
+                        type: 'text',
+                        text: article.title,
+                        wrap: true,
+                        weight: 'bold',
+                        size: 'lg',
+                        maxLines: 3
+                    },
+                    {
+                        type: 'text',
+                        text: formatDate(article.publishAt),
+                        size: 'xs',
+                        color: '#8A8A8E'
+                    }
+                ]
+            },
+            footer: {
+                type: 'box',
+                layout: 'vertical',
+                spacing: 'sm',
+                contents: [{
+                    type: 'button',
+                    style: 'primary',
+                    height: 'sm',
+                    action: { type: 'uri', label: '查看消息', uri: articleUrl }
+                }]
+            }
+        }
+    };
+}
+
+async function shareToLine(article, overlay) {
+    const liffId = getLiffId();
+    if (!liffId) {
+        setShareStatus(overlay, '請先在 index.html 填入 LIFF ID，才能傳送 Flex Message。');
+        return;
+    }
+
+    const button = overlay.querySelector('.line-share-btn');
+    button?.setAttribute('aria-busy', 'true');
+    button?.setAttribute('disabled', '');
+
+    try {
+        const liff = await loadLiffSdk();
+        await liff.init({ liffId });
+
+        if (!liff.isInClient() || !liff.isApiAvailable('shareTargetPicker')) {
+            setShareStatus(overlay, '請在 LINE App 內開啟此頁，再傳送 Flex Message。');
+            return;
+        }
+
+        const result = await liff.shareTargetPicker([buildLineFlexMessage(article)]);
+        setShareStatus(overlay, result ? '已傳送 LINE Flex Message。' : '已取消 LINE 分享。');
+    } catch (error) {
+        console.error('LINE sharing failed', error);
+        setShareStatus(overlay, 'LINE 分享失敗，請確認 LIFF ID 與 App 設定。');
+    } finally {
+        button?.removeAttribute('aria-busy');
+        button?.removeAttribute('disabled');
+    }
+}
+
+function bindShareControls(overlay, article) {
+    overlay.querySelector('.system-share-btn')?.addEventListener('click', () => {
+        shareWithSystemSheet(article, overlay);
+    });
+    overlay.querySelector('.line-share-btn')?.addEventListener('click', () => {
+        shareToLine(article, overlay);
+    });
+}
 
 /**
  * Format date as "YYYY 年 M 月 D 日"
@@ -157,6 +325,15 @@ function buildArticleHtml(article) {
                         <span class="article-date">${formatDate(article.publishAt)}</span>
                     </div>
                     <h1 class="article-title">${article.title}</h1>
+                    <div class="article-share-actions" aria-label="分享這則消息">
+                        <button class="article-share-btn system-share-btn" type="button">
+                            <span aria-hidden="true">⇧</span> 分享
+                        </button>
+                        <button class="article-share-btn line-share-btn" type="button">
+                            <span aria-hidden="true">LINE</span> 傳送
+                        </button>
+                        <p class="share-status" role="status" aria-live="polite"></p>
+                    </div>
                 </div>
             </header>
 
@@ -270,15 +447,8 @@ async function openArticleOverlay(articleId) {
         // Scroll overlay to top instantly (must be AFTER hiding main content to avoid jump)
         window.scrollTo(0, 0);
 
-        // Clear all OTHER overlays' content to free memory (for multi-layer overlays)
-        const allOverlays = document.querySelectorAll('.article-overlay');
-        allOverlays.forEach(otherOverlay => {
-            if (otherOverlay !== overlay) {
-                // ✅ Clear innerHTML completely to release memory
-                // Keep the overlay element itself for stack counting and history
-                otherOverlay.innerHTML = '';
-            }
-        });
+        // Keep previous layers intact so browser Back and the left-edge gesture
+        // can return to the exact article without a blank intermediate state.
     });
 
     // 5. Global Scroll Lock (Idempotent with padding fix)
@@ -292,10 +462,13 @@ async function openArticleOverlay(articleId) {
         // Render content
         overlay.innerHTML = buildArticleHtml(article);
 
+        // Bind article-specific actions after the dynamic markup exists.
+        bindShareControls(overlay, article);
+
         // Render More News (Scoped to this overlay)
         renderMoreNews(articleId, overlay);
 
-        // Swipe to close logic REMOVED for simplicity
+        bindLeftEdgeBackSwipe(overlay);
 
     } catch (error) {
         console.error('Failed to load article', error);
@@ -334,6 +507,75 @@ function unlockBodyScroll() {
             });
         }
     }
+}
+
+/**
+ * iOS-style navigation: begin at the physical left edge, then drag right.
+ * Vertical reading gestures remain untouched because a horizontal intent is
+ * required before the overlay follows the finger.
+ */
+function bindLeftEdgeBackSwipe(overlay) {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    let horizontalIntent = false;
+
+    overlay.addEventListener('touchstart', (event) => {
+        if (event.touches.length !== 1) return;
+
+        const touch = event.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        tracking = startX <= LEFT_EDGE_SWIPE_ZONE;
+        horizontalIntent = false;
+    }, { passive: true });
+
+    overlay.addEventListener('touchmove', (event) => {
+        if (!tracking || event.touches.length !== 1) return;
+
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+
+        if (!horizontalIntent) {
+            if (Math.abs(deltaY) > 12 && Math.abs(deltaY) > Math.abs(deltaX)) {
+                tracking = false;
+                return;
+            }
+            if (deltaX > 12 && deltaX > Math.abs(deltaY)) {
+                horizontalIntent = true;
+                overlay.classList.add('is-swiping');
+            }
+        }
+
+        if (horizontalIntent) {
+            const progress = Math.min(Math.max(deltaX, 0), window.innerWidth * 0.35);
+            overlay.style.transform = `translateX(${progress}px)`;
+        }
+    }, { passive: true });
+
+    overlay.addEventListener('touchend', (event) => {
+        if (!tracking) return;
+
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        const shouldGoBack = horizontalIntent
+            && deltaX >= LEFT_EDGE_SWIPE_DISTANCE
+            && deltaX > Math.abs(deltaY) * 1.2;
+
+        overlay.classList.remove('is-swiping');
+        overlay.style.transform = '';
+        tracking = false;
+
+        if (shouldGoBack) history.back();
+    }, { passive: true });
+
+    overlay.addEventListener('touchcancel', () => {
+        overlay.classList.remove('is-swiping');
+        overlay.style.transform = '';
+        tracking = false;
+    }, { passive: true });
 }
 
 /**
@@ -445,9 +687,9 @@ window.addEventListener('popstate', (event) => {
             allOverlays[targetIndex].classList.add('active');
         }
     } else {
-        // Target is NOT in the stack. 
-        // This implies a jump to a new article (or forward history where DOM was lost).
-        // Otherwise do nothing — implies user went forward, not our job.
+        // This covers browser Forward, or a history entry created before the
+        // overlay existed in the current DOM.
+        openArticleOverlay(targetId);
     }
 });
 
@@ -805,32 +1047,6 @@ function addCardClickHandlers() {
     });
 }
 
-// Handle Browser Back Button
-window.addEventListener('popstate', (event) => {
-    // If we have state, it means we might be popping back to a state that is 'open' 
-    // BUT usually popstate happens when we go *back* to null state (home).
-    // Let's check: if the new URL has no ID, close overlay.
-
-    // Simplest logic: Check URL param
-    const params = new URLSearchParams(window.location.search);
-    if (!params.get('id')) {
-        const overlay = document.getElementById('article-overlay');
-        if (overlay && overlay.classList.contains('active')) {
-            // We interpret this as "Close overlay"
-            // We manually close it, but we DON'T call history.back() again 
-            // because we are already here due to a back action.
-            const overlay = document.getElementById('article-overlay');
-            overlay.classList.remove('active');
-            setTimeout(() => { overlay.innerHTML = ''; }, 400);
-            unlockBodyScroll();
-        }
-    } else {
-        // If we popped TO a state with ID, we should open it (e.g. Forward button)
-        const id = params.get('id');
-        openArticleOverlay(id);
-    }
-});
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
     // Check if loaded with ID (direct link)
@@ -848,9 +1064,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (initialId) {
-        // If direct link, open overlay immediately
-        // Note: The list in background is already fetching/rendering
+        // A LIFF/deep link has no in-app "home" history entry. Add one so the
+        // left-edge gesture always returns to the news list rather than exiting.
+        const homeUrl = new URL(window.location.href);
+        homeUrl.searchParams.delete('id');
+        history.replaceState({ articleOpen: false }, '', homeUrl);
+        history.pushState({ articleOpen: true, articleId: initialId }, '', `?id=${encodeURIComponent(initialId)}`);
         openArticleOverlay(initialId);
     }
 });
-

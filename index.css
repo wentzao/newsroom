@@ -784,6 +784,10 @@ body.overlay-open .site-header {
     /* Slide into view */
 }
 
+.article-overlay.is-swiping {
+    transition: none;
+}
+
 /* Prevent body scroll when overlay is open */
 body.noscroll {
     /* Removed overflow: hidden - we want body to scroll with overlay content */
