@@ -191,20 +191,18 @@ body.overlay-open .site-header {
     top: 50%;
     left: var(--spacing-lg);
     display: grid;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     place-items: center;
-    border: 1px solid rgba(29, 29, 31, 0.12);
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.72);
+    border: 0;
+    background: transparent;
     color: var(--color-text-primary);
     transform: translateY(-50%);
-    transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    transition: color var(--transition-fast), transform var(--transition-fast);
 }
 
 .site-home-btn:hover {
-    border-color: rgba(29, 29, 31, 0.24);
-    background: #fff;
+    color: #0071e3;
     transform: translateY(-50%) scale(1.05);
 }
 
@@ -214,8 +212,8 @@ body.overlay-open .site-header {
 }
 
 .site-home-btn svg {
-    width: 1.15rem;
-    height: 1.15rem;
+    width: 1.35rem;
+    height: 1.35rem;
     stroke: currentColor;
     stroke-width: 1.9;
     stroke-linecap: round;
