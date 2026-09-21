@@ -8,6 +8,8 @@ const PLACEHOLDER_IMAGE = 'assets/backdrop.png';
 const CANONICAL_ORIGIN = 'https://newsroom.wentzao.com';
 const LEFT_EDGE_SWIPE_ZONE = 32;
 const LEFT_EDGE_SWIPE_DISTANCE = 96;
+let liffSdkPromise = null;
+let liffInitializationPromise = null;
 
 function getLiffId() {
     return document.querySelector('meta[name="liff-id"]')?.content.trim() || '';
@@ -69,8 +71,9 @@ async function shareWithSystemSheet(article, overlay, sourceButton) {
 
 function loadLiffSdk() {
     if (window.liff) return Promise.resolve(window.liff);
+    if (liffSdkPromise) return liffSdkPromise;
 
-    return new Promise((resolve, reject) => {
+    liffSdkPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
         script.async = true;
@@ -78,6 +81,32 @@ function loadLiffSdk() {
         script.onerror = () => reject(new Error('LIFF SDK failed to load'));
         document.head.appendChild(script);
     });
+
+    return liffSdkPromise;
+}
+
+function isLikelyLineClient() {
+    return /\bLine\//i.test(navigator.userAgent || '');
+}
+
+async function prepareLiff() {
+    const liffId = getLiffId();
+    if (!liffId) return null;
+
+    const liff = await loadLiffSdk();
+
+    // LINE documents allow this check before init. Avoiding init outside the
+    // LIFF browser prevents an external-browser redirect/reload on button tap.
+    if (!liff.isInClient()) return null;
+
+    if (!liffInitializationPromise) {
+        liffInitializationPromise = liff.init({
+            liffId,
+            withLoginOnExternalBrowser: false
+        }).then(() => liff);
+    }
+
+    return liffInitializationPromise;
 }
 
 function buildLineFlexMessage(article) {
@@ -141,8 +170,7 @@ function buildLineFlexMessage(article) {
 }
 
 async function shareToLine(article, overlay, sourceButton) {
-    const liffId = getLiffId();
-    if (!liffId) {
+    if (!getLiffId()) {
         setShareStatus(overlay, '請先在 index.html 填入 LIFF ID，才能傳送 Flex Message。', sourceButton);
         return;
     }
@@ -152,11 +180,15 @@ async function shareToLine(article, overlay, sourceButton) {
     button?.setAttribute('disabled', '');
 
     try {
-        const liff = await loadLiffSdk();
-        await liff.init({ liffId });
+        const liff = await prepareLiff();
 
-        if (!liff.isInClient() || !liff.isApiAvailable('shareTargetPicker')) {
-            setShareStatus(overlay, '請在 LINE App 內開啟此頁，再傳送 Flex Message。', sourceButton);
+        if (!liff) {
+            setShareStatus(overlay, '請由 LINE App 的 LIFF 開啟這則消息後再分享。', sourceButton);
+            return;
+        }
+
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+            setShareStatus(overlay, '此 LINE 環境無法開啟分享清單，請從 LIFF 重新開啟。', sourceButton);
             return;
         }
 
@@ -177,11 +209,36 @@ function bindShareControls(overlay, article) {
             shareWithSystemSheet(article, overlay, button);
         });
     });
-    overlay.querySelectorAll('.line-share-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            shareToLine(article, overlay, button);
+
+    configureLineShareControls(overlay, article);
+}
+
+function removeLineShareButtons(overlay) {
+    overlay.querySelectorAll('.line-share-btn').forEach(button => button.remove());
+}
+
+async function configureLineShareControls(overlay, article) {
+    if (!isLikelyLineClient()) {
+        removeLineShareButtons(overlay);
+        return;
+    }
+
+    try {
+        const liff = await prepareLiff();
+        if (!liff || !liff.isApiAvailable('shareTargetPicker')) {
+            removeLineShareButtons(overlay);
+            return;
+        }
+
+        overlay.querySelectorAll('.line-share-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                shareToLine(article, overlay, button);
+            });
         });
-    });
+    } catch (error) {
+        console.error('Unable to prepare LINE sharing', error);
+        removeLineShareButtons(overlay);
+    }
 }
 
 /**
@@ -1074,6 +1131,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if loaded with ID (direct link)
     const params = new URLSearchParams(window.location.search);
     const initialId = params.get('id');
+    // Initialize immediately in the LIFF browser. This must finish before we
+    // rewrite a LIFF deep-link URL, because LIFF may temporarily add liff.*
+    // parameters while establishing its session.
+    const liffReady = isLikelyLineClient()
+        ? prepareLiff().catch(error => {
+            console.error('LIFF initialization failed', error);
+            return null;
+        })
+        : Promise.resolve(null);
 
     // Fetch news first to populate background
     await fetchNews();
@@ -1086,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (initialId) {
+        await liffReady;
         // A LIFF/deep link has no in-app "home" history entry. Add one so the
         // left-edge gesture always returns to the news list rather than exiting.
         const homeUrl = new URL(window.location.href);
