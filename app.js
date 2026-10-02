@@ -10,19 +10,20 @@ const LEFT_EDGE_SWIPE_ZONE = 32;
 const LEFT_EDGE_SWIPE_DISTANCE = 96;
 let liffSdkPromise = null;
 let liffInitializationPromise = null;
+let newsRequestId = 0;
 
 function getLiffId() {
     return document.querySelector('meta[name="liff-id"]')?.content.trim() || '';
 }
 
 function getArticleUrl(articleId) {
-    return `${CANONICAL_ORIGIN}/?id=${encodeURIComponent(articleId)}`;
+    return `${CANONICAL_ORIGIN}${getNewsroomPath(articleId)}`;
 }
 
 function getLiffArticleUrl(articleId) {
     const liffId = getLiffId();
     return liffId
-        ? `https://liff.line.me/${encodeURIComponent(liffId)}?id=${encodeURIComponent(articleId)}`
+        ? `https://liff.line.me/${encodeURIComponent(liffId)}${getNewsroomPath(articleId).slice(1)}`
         : getArticleUrl(articleId);
 }
 
@@ -459,7 +460,7 @@ function buildArticleHtml(article) {
         <!-- More News Section -->
         <section class="more-news-section">
             <div class="more-news-container">
-                <h2 class="more-news-title">文藻幼兒園 的更多資訊</h2>
+                <h2 class="more-news-title">${CAMPUS_CONFIG[activeCampus].name} 的更多資訊</h2>
                 <div id="more-news-list" class="more-news-list">
                     <!-- Populated by JS -->
                 </div>
@@ -471,7 +472,7 @@ function buildArticleHtml(article) {
                         </svg>
                         回到消息主頁
                     </button>
-                    <a class="back-to-site-btn" href="https://kindergarten.wentzao.com/">
+                    <a class="back-to-site-btn" href="${CAMPUS_CONFIG[activeCampus].website}">
                         <svg class="back-navigation-icon back-site-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" />
                             <path d="M9 21v-7h6v7" />
@@ -511,7 +512,7 @@ function renderMoreNews(currentId, overlayContext) {
         const isFallback = !news.coverImage;
 
         return `
-            <a href="?id=${news.id}" class="more-news-item" data-id="${news.id}" onclick="handleCardClick(event)">
+            <a href="${getNewsroomPath(news.id)}" class="more-news-item" data-id="${news.id}" onclick="handleCardClick(event)">
                 <div class="more-news-image-wrapper">
                     <img src="${imageUrl}" alt="${news.title}" loading="lazy" class="${isFallback ? 'fallback' : ''}" onerror="this.src='${PLACEHOLDER_IMAGE}'">
                 </div>
@@ -530,7 +531,7 @@ function renderMoreNews(currentId, overlayContext) {
  */
 let closeTimer = null; // Global timer isn't enough for stack, but we keep simple debounce if needed
 
-async function openArticleOverlay(articleId) {
+async function openArticleOverlay(articleId, preloadedArticle = null) {
     // Prevent duplicate open if already top
     const existingOverlays = document.querySelectorAll('.article-overlay');
     if (existingOverlays.length > 0) {
@@ -580,9 +581,17 @@ async function openArticleOverlay(articleId) {
     lockBodyScroll();
 
     try {
-        const response = await fetch(API_URL + articleId);
-        if (!response.ok) throw new Error('Network response was not ok');
-        const article = await response.json();
+        let article = preloadedArticle;
+        if (!article) {
+            const response = await fetch(`${API_URL}${encodeURIComponent(articleId)}?campus=${activeCampus}`);
+            if (!response.ok) throw new Error('Network response was not ok');
+            article = await response.json();
+        }
+        if (!isArticleInCampus(article) || (article.status && article.status !== 'published')
+            || (article.publishAt && new Date(article.publishAt) > new Date())) {
+            throw new Error('Article is not available in this campus');
+        }
+        if (!overlay.isConnected) return;
 
         // Render content
         overlay.innerHTML = buildArticleHtml(article);
@@ -777,10 +786,20 @@ function closeAllOverlays() {
 }
 
 // Handle Browser Back Button
-window.addEventListener('popstate', (event) => {
+window.addEventListener('popstate', async (event) => {
     // Current URL state
     const params = new URLSearchParams(window.location.search);
     const targetId = params.get('id');
+    const targetCampus = normalizeCampus(params.get('campus'));
+    if (targetCampus !== activeCampus) {
+        document.querySelectorAll('.article-overlay').forEach(overlay => overlay.remove());
+        unlockBodyScroll();
+        activeCampus = targetCampus;
+        updateCampusIdentity();
+        await fetchNews();
+        if (targetCampus === activeCampus && targetId) openArticleOverlay(targetId);
+        return;
+    }
 
     // Current DOM state - Get ALL overlays (active or implicitly in stack)
     // We treat the DOM order as the truth of the stack.
@@ -975,7 +994,7 @@ function renderNews(newsItems) {
     allNewsItems = newsItems || [];
 
     if (allNewsItems.length === 0) {
-        featuredSection.innerHTML = '<p style="text-align: center; color: #6e6e73;">目前沒有新聞</p>';
+        featuredSection.innerHTML = `<p style="text-align: center; color: #6e6e73;">${CAMPUS_CONFIG[activeCampus].label}目前沒有消息</p>`;
         newsGrid.innerHTML = '';
         return;
     }
@@ -1122,22 +1141,28 @@ function showError() {
  * Fetch news from API
  */
 async function fetchNews() {
+    const campus = activeCampus;
+    const requestId = ++newsRequestId;
     showLoading();
 
     try {
-        const response = await fetch(API_URL + '?limit=50');
+        const response = await fetch(`${API_URL}?limit=50&campus=${campus}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (requestId !== newsRequestId) return;
         hideLoading();
 
-        renderNews(data.items || data);
-        return data.items || data;
+        const items = (data.items || data).filter(item => isArticleInCampus(item, campus));
+        renderNews(items);
+        addCardClickHandlers();
+        return items;
 
     } catch (error) {
+        if (requestId !== newsRequestId) return;
         console.error('Failed to fetch news:', error);
         hideLoading();
         showError();
@@ -1155,7 +1180,7 @@ function handleCardClick(event) {
 
     if (articleId) {
         // Update URL and History
-        history.pushState({ articleOpen: true, articleId: articleId }, '', `?id=${articleId}`);
+        history.pushState({ articleOpen: true, articleId: articleId }, '', getNewsroomPath(articleId));
         openArticleOverlay(articleId);
     }
 }
@@ -1177,7 +1202,7 @@ function addCardClickHandlers() {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
     // Check if loaded with ID (direct link)
-    const params = new URLSearchParams(window.location.search);
+    const params = getNewsParams();
     const initialId = params.get('id');
     // Initialize immediately in the LIFF browser. This must finish before we
     // rewrite a LIFF deep-link URL, because LIFF may temporarily add liff.*
@@ -1188,6 +1213,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             return null;
         })
         : Promise.resolve(null);
+
+    let initialArticle = null;
+    if (initialId && !params.has('campus')) {
+        try {
+            const response = await fetch(API_URL + encodeURIComponent(initialId));
+            if (response.ok) {
+                initialArticle = await response.json();
+                if (!isArticleInCampus(initialArticle)) {
+                    activeCampus = normalizeCampus(getArticleCampuses(initialArticle)[0]);
+                }
+            }
+        } catch (error) {
+            console.error('Could not resolve article campus', error);
+        }
+    }
+    updateCampusIdentity();
+    document.querySelectorAll('[data-campus]').forEach(button => {
+        button.addEventListener('click', async () => {
+            const campus = button.dataset.campus;
+            if (campus === activeCampus) return;
+            activeCampus = campus;
+            history.pushState({ articleOpen: false }, '', getNewsroomPath());
+            updateCampusIdentity();
+            await fetchNews();
+        });
+    });
 
     // Fetch news first to populate background
     await fetchNews();
@@ -1205,8 +1256,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // left-edge gesture always returns to the news list rather than exiting.
         const homeUrl = new URL(window.location.href);
         homeUrl.searchParams.delete('id');
+        homeUrl.searchParams.delete('liff.state');
+        homeUrl.searchParams.set('campus', activeCampus);
         history.replaceState({ articleOpen: false }, '', homeUrl);
-        history.pushState({ articleOpen: true, articleId: initialId }, '', `?id=${encodeURIComponent(initialId)}`);
-        openArticleOverlay(initialId);
+        history.pushState({ articleOpen: true, articleId: initialId }, '', getNewsroomPath(initialId));
+        openArticleOverlay(initialId, initialArticle);
     }
 });

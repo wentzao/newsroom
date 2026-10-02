@@ -11,7 +11,7 @@
         Flex Message 的「查看消息」會以 https://liff.line.me/{LIFF_ID}?id={文章 ID} 開啟本頁。
     -->
     <meta name="liff-id" content="1660786685-5GLgRIGc">
-    <link rel="stylesheet" href="index.css?v=20260921.8">
+    <link rel="stylesheet" href="index.css?v=20261002.1">
     <link rel="stylesheet" href="bookmark.css">
     <link rel="stylesheet" href="article.css?v=20260921.5">
     <link rel="stylesheet" href="article-more.css">
@@ -36,6 +36,10 @@
     <main class="main-content">
         <div class="container">
             <!-- Featured Article -->
+            <nav class="campus-switch" aria-label="選擇消息校區">
+                <button type="button" data-campus="kindergarten" aria-pressed="true">幼兒校區</button>
+                <button type="button" data-campus="afterschool" aria-pressed="false">安親校區</button>
+            </nav>
             <section id="featured" class="featured-section">
                 <!-- Populated by JavaScript -->
             </section>
@@ -68,7 +72,8 @@
     <!-- Article Overlay -->
     <!-- Article Overlay Dynamic Container Handling handled by JS -->
 
-    <script src="app.js?v=20260921.8"></script>
+    <script src="campus.js?v=20261002.1"></script>
+    <script src="app.js?v=20261002.1"></script>
 </body>
 
 </html>

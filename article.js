@@ -149,7 +149,7 @@ function renderContentBlocks(blocks) {
  */
 function renderArticle(article) {
     // Update page title
-    document.title = `${article.title} - 文藻幼兒園`;
+    document.title = `${article.title} - ${CAMPUS_CONFIG[activeCampus].name}`;
 
     // Update header
     document.querySelector('.article-tag').textContent = article.tag || '公告';
@@ -210,13 +210,23 @@ async function fetchArticle() {
         return;
     }
 
-    // Start fetching more news in parallel
-    fetchMoreNews(articleId);
-
     try {
-        const response = await fetch(API_URL + articleId);
+        const explicitCampus = getNewsParams().has('campus');
+        const response = await fetch(API_URL + encodeURIComponent(articleId) + (explicitCampus ? `?campus=${activeCampus}` : ''));
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        renderArticle(await response.json());
+        const article = await response.json();
+        if (!explicitCampus && !isArticleInCampus(article)) {
+            activeCampus = normalizeCampus(getArticleCampuses(article)[0]);
+        }
+        if (!isArticleInCampus(article) || (article.status && article.status !== 'published')
+            || (article.publishAt && new Date(article.publishAt) > new Date())) {
+            throw new Error('Article is not available in this campus');
+        }
+        updateCampusIdentity();
+        document.querySelector('.more-news-title').textContent = `${CAMPUS_CONFIG[activeCampus].name} 的更多資訊`;
+        document.querySelector('.back-btn-circle').href = getNewsroomPath();
+        renderArticle(article);
+        fetchMoreNews(articleId);
 
     } catch (error) {
         console.error('Failed to fetch article:', error);
@@ -237,7 +247,7 @@ function renderMoreNews(newsItems) {
         const isFallback = !news.coverImage;
 
         return `
-            <a href="article.html?id=${news.id}" class="more-news-item" onclick="handleMoreNewsClick(event, '${news.id}')">
+            <a href="article.html?campus=${activeCampus}&id=${encodeURIComponent(news.id)}" class="more-news-item" onclick="handleMoreNewsClick(event, '${news.id}')">
                 <div class="more-news-image-wrapper">
                     <img src="${imageUrl}" alt="${news.title}" loading="lazy" class="${isFallback ? 'fallback' : ''}" onerror="this.src='${PLACEHOLDER_IMAGE}'">
                 </div>
@@ -265,7 +275,7 @@ function handleMoreNewsClick(event, id) {
 async function fetchMoreNews(currentId) {
     try {
         // Fetch recent news
-        const response = await fetch(API_URL + '?limit=4'); // Fetch 4 to have buffer if current is in top list
+        const response = await fetch(`${API_URL}?limit=4&campus=${activeCampus}`);
         if (!response.ok) return;
 
         const data = await response.json();
@@ -273,7 +283,7 @@ async function fetchMoreNews(currentId) {
 
         // Filter out current article and limit to 3
         const relatedNews = items
-            .filter(item => item.id !== currentId)
+            .filter(item => item.id !== currentId && isArticleInCampus(item))
             .slice(0, 3);
 
         renderMoreNews(relatedNews);
@@ -297,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 history.back();
             } else {
                 // Otherwise (direct link, external referrer), explicit navigation
-                window.location.href = 'index.html';
+                window.location.href = getNewsroomPath();
             }
         });
     }
