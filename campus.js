@@ -1,7 +1,7 @@
 // Shared audience rules for the newsroom and legacy article page.
 const CAMPUS_CONFIG = {
-    kindergarten: { label: '幼兒校區', name: '文藻幼兒園', website: 'https://kindergarten.wentzao.com/' },
-    afterschool: { label: '安親校區', name: '文藻安親校區', website: 'https://www.wentzao.com/' }
+    kindergarten: { label: '幼兒校區', name: '文藻幼兒園', website: 'https://www.wentzao.com/kindergarten/' },
+    afterschool: { label: '安親校區', name: '文藻安親校區', website: 'https://www.wentzao.com/rainbow/' }
 };
 
 function getNewsParams() {

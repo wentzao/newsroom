@@ -42,7 +42,7 @@ Newsroom 校區網址：
 - 幼兒：`https://newsroom.wentzao.com/?campus=kindergarten`
 - 安親：`https://newsroom.wentzao.com/?campus=afterschool`
 - 文章網址和 LINE LIFF 分享網址均帶 `campus` 與 `id`；原本只帶 `id` 的連結會依文章校區選擇適合的列表。
-- 安親官網目前使用 `https://www.wentzao.com/`；幼兒官網沿用 `https://kindergarten.wentzao.com/`。
+- 安親官網使用 `https://www.wentzao.com/rainbow/`；幼兒官網使用 `https://www.wentzao.com/kindergarten/`。左上角 Home 與文章底部官網按鈕共用目前校區的設定；雙校區文章保留讀者進入時選擇的校區。
 
 ## 驗證紀錄（2026-10-02）
 
