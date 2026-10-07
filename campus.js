@@ -8,7 +8,16 @@ function getNewsParams() {
     const params = new URLSearchParams(window.location.search);
     const liffState = params.get('liff.state');
     if (liffState) {
-        const stateParams = new URLSearchParams(liffState.replace(/^\/?\?/, ''));
+        // LINE may wrap the query in a path (for example /?id=... or
+        // /article.html?id=...). URLSearchParams alone cannot parse that path.
+        let stateParams;
+        try {
+            stateParams = /^[^/?#]+=/.test(liffState)
+                ? new URLSearchParams(liffState.split('#')[0])
+                : new URL(liffState, window.location.origin).searchParams;
+        } catch (error) {
+            stateParams = new URLSearchParams();
+        }
         for (const key of ['id', 'campus']) {
             if (!params.has(key) && stateParams.has(key)) params.set(key, stateParams.get(key));
         }

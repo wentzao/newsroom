@@ -50,7 +50,8 @@ async function shareWithSystemSheet(article, overlay, sourceButton) {
     const shareData = {
         title: article.title,
         text: `${article.tag || '公告'}｜${article.title}`,
-        url: getArticleUrl(article.id)
+        // A plain text/system share should enter the same LIFF reader as Flex.
+        url: getLiffArticleUrl(article.id)
     };
 
     try {
@@ -90,7 +91,7 @@ function isLikelyLineClient() {
     return /\bLine\//i.test(navigator.userAgent || '');
 }
 
-async function prepareLiff() {
+async function prepareLiff({ allowExternalRedirect = false } = {}) {
     const liffId = getLiffId();
     if (!liffId) return null;
 
@@ -98,7 +99,10 @@ async function prepareLiff() {
 
     // LINE documents allow this check before init. Avoiding init outside the
     // LIFF browser prevents an external-browser redirect/reload on button tap.
-    if (!liff.isInClient()) return null;
+    // A primary LIFF redirect must also finish init in an external browser,
+    // so LINE can transfer liff.state to the final URL. Ordinary web visits
+    // still skip init and never force a LINE login.
+    if (!liff.isInClient() && !allowExternalRedirect) return null;
 
     if (!liffInitializationPromise) {
         liffInitializationPromise = liff.init({
@@ -1201,21 +1205,27 @@ function addCardClickHandlers() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check if loaded with ID (direct link)
+    const entryParams = getNewsParams();
+    const isLiffRedirect = new URLSearchParams(location.search).has('liff.state');
+    // Do not bind navigation or alter history until LINE finishes its primary
+    // redirect. Read the final query again because init may change the URL.
+    if (isLikelyLineClient() || isLiffRedirect) {
+        try {
+            await prepareLiff({ allowExternalRedirect: isLiffRedirect });
+        } catch (error) {
+            console.error('LIFF initialization failed');
+            showError();
+            document.querySelector('#error p').textContent = 'LINE 閱讀畫面暫時無法開啟，請關閉後重新點選新聞連結。';
+            return;
+        }
+    }
     const params = getNewsParams();
-    const initialId = params.get('id');
-    // Initialize immediately in the LIFF browser. This must finish before we
-    // rewrite a LIFF deep-link URL, because LIFF may temporarily add liff.*
-    // parameters while establishing its session.
-    const liffReady = isLikelyLineClient()
-        ? prepareLiff().catch(error => {
-            console.error('LIFF initialization failed', error);
-            return null;
-        })
-        : Promise.resolve(null);
+    const initialId = params.get('id') || entryParams.get('id');
+    activeCampus = normalizeCampus(params.get('campus') || entryParams.get('campus'));
+    const explicitCampus = params.has('campus') || entryParams.has('campus');
 
     let initialArticle = null;
-    if (initialId && !params.has('campus')) {
+    if (initialId && !explicitCampus) {
         try {
             const response = await fetch(API_URL + encodeURIComponent(initialId));
             if (response.ok) {
@@ -1240,9 +1250,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Fetch news first to populate background
-    await fetchNews();
-    addCardClickHandlers();
+    // Populate the background independently: a slow list must not delay a
+    // parent's direct article link.
+    const newsReady = fetchNews();
 
     // Add load more listener
     const loadMoreBtn = document.getElementById('load-more-btn');
@@ -1251,7 +1261,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (initialId) {
-        await liffReady;
         // A LIFF/deep link has no in-app "home" history entry. Add one so the
         // left-edge gesture always returns to the news list rather than exiting.
         const homeUrl = new URL(window.location.href);
@@ -1260,6 +1269,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         homeUrl.searchParams.set('campus', activeCampus);
         history.replaceState({ articleOpen: false }, '', homeUrl);
         history.pushState({ articleOpen: true, articleId: initialId }, '', getNewsroomPath(initialId));
-        openArticleOverlay(initialId, initialArticle);
+        await openArticleOverlay(initialId, initialArticle);
     }
+    await newsReady;
+    const topOverlay = [...document.querySelectorAll('.article-overlay')].at(-1);
+    if (topOverlay) renderMoreNews(topOverlay.dataset.id, topOverlay);
 });
