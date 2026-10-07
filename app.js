@@ -129,7 +129,7 @@ function buildLineFlexMessage(article) {
     const title = article.title || '最新消息';
     const tag = article.tag || '公告';
     const campusLabel = CAMPUS_CONFIG[activeCampus].label;
-    // Dimension-free columns keep equal widths in LINE; the fixed-height pill
+    // Dimension-free columns keep equal widths in LINE; the fixed-height cell
     // belongs inside each vertical column so it cannot override horizontal flex.
     const createDetailCell = (text, action = null) => ({
         type: 'box',
@@ -140,8 +140,7 @@ function buildLineFlexMessage(article) {
             layout: 'vertical',
             flex: 0,
             height: '36px',
-            cornerRadius: '18px',
-            backgroundColor: action ? '#02A568' : '#EEF6F1',
+            ...(action ? { cornerRadius: '18px', backgroundColor: '#02A568' } : {}),
             paddingStart: '4px',
             paddingEnd: '4px',
             justifyContent: 'center',

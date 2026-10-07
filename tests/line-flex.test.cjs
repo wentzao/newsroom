@@ -143,7 +143,6 @@ test('centers the full-width title above three equally sized and aligned cells',
         assert.equal(cell.flex, 0);
         assert.equal(cell.width, undefined);
         assert.equal(cell.height, '36px');
-        assert.equal(cell.cornerRadius, '18px');
         assert.equal(cell.justifyContent, 'center');
         assert.equal(cell.contents[0].size, '13px');
         assert.equal(cell.contents[0].align, 'center');
@@ -151,8 +150,16 @@ test('centers the full-width title above three equally sized and aligned cells',
     }
     assert.equal(cells[0].action, undefined);
     assert.equal(cells[1].action, undefined);
+    for (const cell of cells.slice(0, 2)) {
+        assert.equal(cell.backgroundColor, undefined);
+        assert.equal(cell.cornerRadius, undefined);
+        assert.equal(cell.borderColor, undefined);
+        assert.equal(cell.borderWidth, undefined);
+        assert.equal(cell.contents[0].color, '#087047');
+    }
     assert.equal(cells[2].action.label, '閱讀公告');
     assert.equal(cells[2].backgroundColor, '#02A568');
+    assert.equal(cells[2].cornerRadius, '18px');
 });
 
 test('uses white image letterboxing while preserving the entire 4:3 cover', () => {
