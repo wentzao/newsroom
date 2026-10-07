@@ -16,7 +16,7 @@ https://liff.line.me/1660786685-5GLgRIGc?id=新聞ID&campus=afterschool
 - 未帶 `id` 時顯示該校區的新聞列表。
 - 必須已發布、到達公開時間、符合指定校區，文章才可讀取。
 - 一般「分享」依 SDK 的 `liff.isInClient()` 判斷：LIFF 瀏覽器分享 LIFF 連結；Chrome、Safari 或 LINE 的一般內建瀏覽器分享 newsroom 網頁連結。不能只靠網址含 `liff.state` 或 LINE User-Agent 判斷。
-- LINE Flex Message 的圖片、查看消息按鈕固定使用 LIFF 連結。
+- LINE Flex Message 的圖片、「閱讀公告」按鈕固定使用 LIFF 連結。
 - 教師編輯器的「分享連結」區可分別複製網頁與 LIFF 連結；雙校區文章可選擇連結要開啟的校區。連結依已儲存／發布的版本產生，不會把未發布的校區修改套用到公開版本。
 - 直接分享 `https://newsroom.wentzao.com/?id=...` 仍能閱讀，但不保證使用 LIFF 瀏覽器。
 
@@ -43,3 +43,14 @@ LINE 的重導向。外部瀏覽器的 LIFF 重導向也會初始化，但不強
 - https://developers.line.biz/en/reference/liff/#init
 
 驗證時只讀取公開 API，使用隔離 SDK 測試分享內容；不送出 LINE 訊息或建立真實新聞。
+
+## LINE 分享卡片
+
+採用無邊框大封面版型：4:3 圖片完整呈現（`fit`），下方左側顯示標題與
+「校區 · 分類」，右側為綠色「閱讀公告」圓角按鈕。封面、文字與文章連結
+均由當則新聞產生；雙校區新聞沿用目前閱讀的校區。
+
+標題保留換行與 `shrink-to-fit`，不限制兩行；實際縮字效果由 LINE 用戶端決定。
+一般網頁分享與新聞列表版型不受影響。
+
+執行 `node --test tests/line-flex.test.cjs` 可檢查核定 JSON 與分享流程。

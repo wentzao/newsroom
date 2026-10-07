@@ -126,58 +126,112 @@ async function prepareLiff({ allowExternalRedirect = false } = {}) {
 function buildLineFlexMessage(article) {
     const imageUrl = getAbsoluteImageUrl(getEffectiveCoverImage(article));
     const articleUrl = getLiffArticleUrl(article.id);
+    const title = article.title || '最新消息';
+    const tag = article.tag || '公告';
+    const campusLabel = CAMPUS_CONFIG[activeCampus].label;
 
     return {
         type: 'flex',
-        altText: `${article.tag || '公告'}｜${article.title}`,
+        altText: `${tag}｜${title}`,
         contents: {
             type: 'bubble',
+            size: 'mega',
             hero: {
                 type: 'image',
                 url: imageUrl,
                 size: 'full',
-                aspectRatio: '20:13',
-                aspectMode: 'cover',
+                aspectRatio: '4:3',
+                aspectMode: 'fit',
+                backgroundColor: '#0A2B52',
                 action: { type: 'uri', uri: articleUrl }
             },
             body: {
                 type: 'box',
-                layout: 'vertical',
-                spacing: 'sm',
+                layout: 'horizontal',
+                backgroundColor: '#FFFFFF',
+                paddingTop: '2px',
+                paddingBottom: '8px',
+                paddingStart: '4px',
+                paddingEnd: '14px',
+                spacing: '6px',
+                alignItems: 'center',
                 contents: [
                     {
-                        type: 'text',
-                        text: article.tag || '公告',
-                        size: 'xs',
-                        color: '#6E6E73',
-                        weight: 'bold'
+                        type: 'box',
+                        layout: 'vertical',
+                        flex: 1,
+                        spacing: '2px',
+                        contents: [
+                            {
+                                type: 'box',
+                                layout: 'vertical',
+                                backgroundColor: '#FFFFFF',
+                                cornerRadius: '4px',
+                                paddingTop: '2px',
+                                paddingBottom: '2px',
+                                paddingStart: '10px',
+                                paddingEnd: '4px',
+                                contents: [{
+                                    type: 'text',
+                                    text: title,
+                                    size: '22px',
+                                    weight: 'bold',
+                                    color: '#203A2D',
+                                    wrap: true,
+                                    adjustMode: 'shrink-to-fit',
+                                    scaling: true
+                                }]
+                            },
+                            {
+                                type: 'box',
+                                layout: 'vertical',
+                                paddingStart: '12px',
+                                contents: [{
+                                    type: 'box',
+                                    layout: 'vertical',
+                                    backgroundColor: '#FFFFFF',
+                                    cornerRadius: '4px',
+                                    paddingAll: '4px',
+                                    contents: [{
+                                        type: 'text',
+                                        text: `${campusLabel} · ${tag}`,
+                                        size: '13px',
+                                        weight: 'bold',
+                                        color: '#087047',
+                                        wrap: true,
+                                        maxLines: 2,
+                                        adjustMode: 'shrink-to-fit',
+                                        scaling: true
+                                    }]
+                                }]
+                            }
+                        ]
                     },
                     {
-                        type: 'text',
-                        text: article.title,
-                        wrap: true,
-                        weight: 'bold',
-                        size: 'lg',
-                        maxLines: 3
-                    },
-                    {
-                        type: 'text',
-                        text: formatDate(article.publishAt),
-                        size: 'xs',
-                        color: '#8A8A8E'
+                        type: 'box',
+                        layout: 'vertical',
+                        flex: 0,
+                        width: '100px',
+                        height: '42px',
+                        cornerRadius: '21px',
+                        backgroundColor: '#02A568',
+                        justifyContent: 'center',
+                        contents: [{
+                            type: 'text',
+                            text: '閱讀公告',
+                            size: '16px',
+                            weight: 'bold',
+                            color: '#FFFFFF',
+                            align: 'center',
+                            gravity: 'center',
+                            adjustMode: 'shrink-to-fit',
+                            scaling: true,
+                            flex: 0,
+                            maxLines: 2
+                        }],
+                        action: { type: 'uri', label: '閱讀公告', uri: articleUrl }
                     }
                 ]
-            },
-            footer: {
-                type: 'box',
-                layout: 'vertical',
-                spacing: 'sm',
-                contents: [{
-                    type: 'button',
-                    style: 'primary',
-                    height: 'sm',
-                    action: { type: 'uri', label: '查看消息', uri: articleUrl }
-                }]
             }
         }
     };

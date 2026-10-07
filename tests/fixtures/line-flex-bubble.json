@@ -1,0 +1,116 @@
+{
+  "type": "bubble",
+  "size": "mega",
+  "hero": {
+    "type": "image",
+    "url": "https://imageserver.wentzao.com/images/contactbook/news-cover/1791364778833_b9e8f4.jpg",
+    "size": "full",
+    "aspectRatio": "4:3",
+    "aspectMode": "fit",
+    "backgroundColor": "#0A2B52",
+    "action": {
+      "type": "uri",
+      "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
+    }
+  },
+  "body": {
+    "type": "box",
+    "layout": "horizontal",
+    "backgroundColor": "#FFFFFF",
+    "paddingTop": "2px",
+    "paddingBottom": "8px",
+    "paddingStart": "4px",
+    "paddingEnd": "14px",
+    "spacing": "6px",
+    "alignItems": "center",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "vertical",
+        "flex": 1,
+        "spacing": "2px",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#FFFFFF",
+            "cornerRadius": "4px",
+            "paddingTop": "2px",
+            "paddingBottom": "2px",
+            "paddingStart": "10px",
+            "paddingEnd": "4px",
+            "contents": [
+              {
+                "type": "text",
+                "text": "👑單字王競賽",
+                "size": "22px",
+                "weight": "bold",
+                "color": "#203A2D",
+                "wrap": true,
+                "adjustMode": "shrink-to-fit",
+                "scaling": true
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "vertical",
+            "paddingStart": "12px",
+            "contents": [
+              {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFFFFF",
+                "cornerRadius": "4px",
+                "paddingAll": "4px",
+                "contents": [
+                  {
+                    "type": "text",
+                    "text": "安親校區 · 課務提醒",
+                    "size": "13px",
+                    "weight": "bold",
+                    "color": "#087047",
+                    "wrap": true,
+                    "maxLines": 2,
+                    "adjustMode": "shrink-to-fit",
+                    "scaling": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "box",
+        "layout": "vertical",
+        "flex": 0,
+        "width": "100px",
+        "height": "42px",
+        "cornerRadius": "21px",
+        "backgroundColor": "#02A568",
+        "justifyContent": "center",
+        "contents": [
+          {
+            "type": "text",
+            "text": "閱讀公告",
+            "size": "16px",
+            "weight": "bold",
+            "color": "#FFFFFF",
+            "align": "center",
+            "gravity": "center",
+            "adjustMode": "shrink-to-fit",
+            "scaling": true,
+            "flex": 0,
+            "maxLines": 2
+          }
+        ],
+        "action": {
+          "type": "uri",
+          "label": "閱讀公告",
+          "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
+        }
+      }
+    ]
+  }
+}
