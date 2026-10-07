@@ -27,6 +27,16 @@ function getLiffArticleUrl(articleId) {
         : getArticleUrl(articleId);
 }
 
+function isLiffBrowser() {
+    // A LIFF URL opened in Chrome/Safari is still an external browser.
+    // LINE's ordinary in-app browser is not necessarily a LIFF browser either.
+    return window.liff?.isInClient?.() === true;
+}
+
+function getShareArticleUrl(articleId) {
+    return isLiffBrowser() ? getLiffArticleUrl(articleId) : getArticleUrl(articleId);
+}
+
 function getAbsoluteImageUrl(imageUrl) {
     try {
         return new URL(imageUrl || PLACEHOLDER_IMAGE, CANONICAL_ORIGIN).href;
@@ -50,8 +60,7 @@ async function shareWithSystemSheet(article, overlay, sourceButton) {
     const shareData = {
         title: article.title,
         text: `${article.tag || '公告'}｜${article.title}`,
-        // A plain text/system share should enter the same LIFF reader as Flex.
-        url: getLiffArticleUrl(article.id)
+        url: getShareArticleUrl(article.id)
     };
 
     try {
@@ -223,7 +232,7 @@ function removeLineShareButtons(overlay) {
 }
 
 async function configureLineShareControls(overlay, article) {
-    if (!isLikelyLineClient()) {
+    if (!isLikelyLineClient() && !isLiffBrowser()) {
         removeLineShareButtons(overlay);
         return;
     }
@@ -1209,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isLiffRedirect = new URLSearchParams(location.search).has('liff.state');
     // Do not bind navigation or alter history until LINE finishes its primary
     // redirect. Read the final query again because init may change the URL.
-    if (isLikelyLineClient() || isLiffRedirect) {
+    if (isLikelyLineClient() || isLiffRedirect || isLiffBrowser()) {
         try {
             await prepareLiff({ allowExternalRedirect: isLiffRedirect });
         } catch (error) {

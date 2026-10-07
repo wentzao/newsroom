@@ -15,7 +15,9 @@ https://liff.line.me/1660786685-5GLgRIGc?id=新聞ID&campus=afterschool
 - 省略 `campus` 時，依文章的顯示校區選擇；雙校區文章預設幼兒。
 - 未帶 `id` 時顯示該校區的新聞列表。
 - 必須已發布、到達公開時間、符合指定校區，文章才可讀取。
-- 一般分享／複製與 LINE Flex Message 的圖片、查看消息按鈕均使用上述 LIFF 連結。
+- 一般「分享」依 SDK 的 `liff.isInClient()` 判斷：LIFF 瀏覽器分享 LIFF 連結；Chrome、Safari 或 LINE 的一般內建瀏覽器分享 newsroom 網頁連結。不能只靠網址含 `liff.state` 或 LINE User-Agent 判斷。
+- LINE Flex Message 的圖片、查看消息按鈕固定使用 LIFF 連結。
+- 教師編輯器的「分享連結」區可分別複製網頁與 LIFF 連結；雙校區文章可選擇連結要開啟的校區。連結依已儲存／發布的版本產生，不會把未發布的校區修改套用到公開版本。
 - 直接分享 `https://newsroom.wentzao.com/?id=...` 仍能閱讀，但不保證使用 LIFF 瀏覽器。
 
 ## 初始化與閱讀
