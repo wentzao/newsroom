@@ -927,10 +927,14 @@ function createFeaturedCard(news) {
 /**
  * Create news card HTML
  */
-function createNewsCard(news, isSmall = false) {
+function createNewsCard(news, isSmall = false, isMobileCompact = isSmall) {
     const imageUrl = getEffectiveCoverImage(news);
     const tagClass = isImportantTag(news.tag) ? 'news-card-tag important' : 'news-card-tag';
-    const cardClass = isSmall ? 'news-card news-card-small' : 'news-card';
+    const cardClass = [
+        'news-card',
+        isSmall ? 'news-card-small' : '',
+        isMobileCompact ? 'news-card-mobile-compact' : ''
+    ].filter(Boolean).join(' ');
 
     // Core Card HTML
     const cardHtml = `
@@ -960,7 +964,7 @@ function createNewsCard(news, isSmall = false) {
     // Wrap if pinned
     if (news.isPinned) {
         return `
-            <div class="pinned-wrapper">
+            <div class="pinned-wrapper${isMobileCompact ? ' mobile-compact-wrapper' : ''}">
                 ${cardHtml}
                 ${bookmarkHtml}
             </div>
@@ -975,6 +979,7 @@ let allNewsItems = [];
 let renderedCount = 0;
 const INITIAL_BATCH_SIZE = 11; // 1 featured + 4 grid + 6 small
 const LOAD_MORE_BATCH_SIZE = 6; // Load 6 at a time (2 rows)
+const MOBILE_COMPACT_START_INDEX = 4; // The fifth visible article, counting the featured item.
 
 // Scroll Observer
 const scrollObserver = new IntersectionObserver((entries) => {
@@ -1032,7 +1037,9 @@ function renderNews(newsItems) {
     const mainBatchSize = 4;
     const mainItems = allNewsItems.slice(renderedCount, renderedCount + mainBatchSize);
     if (mainItems.length > 0) {
-        const html = mainItems.map(news => createNewsCard(news)).join('');
+        const html = mainItems.map((news, index) =>
+            createNewsCard(news, false, renderedCount + index >= MOBILE_COMPACT_START_INDEX)
+        ).join('');
         newsGrid.insertAdjacentHTML('beforeend', html);
 
         // Find the newly added cards (this is a bit broad but safe for initial render)
