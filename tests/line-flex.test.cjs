@@ -105,12 +105,22 @@ test('keeps long titles, wrapping and native shrink-to-fit without a line cap', 
     for (const title of ['親子活動、課程提醒與重要事項說明'.repeat(4), 'LongEnglishTitleWithoutSpacesForWrapping', '👑🌈 文藻最新活動通知']) {
         const text = titleText(createApp().build({ ...sample, title }).contents);
         assert.equal(text.text, title);
-        assert.equal(text.size, '22px');
+        assert.equal(text.size, '18px');
         assert.equal(text.wrap, true);
         assert.equal(text.adjustMode, 'shrink-to-fit');
         assert.equal(text.scaling, true);
         assert.equal(text.maxLines, undefined);
     }
+});
+
+test('uses the smaller title size for eight Chinese characters without truncation', () => {
+    const title = '國慶連假休假通知';
+    assert.equal([...title].length, 8);
+    const bubble = createApp().build({ ...sample, title }).contents;
+    assert.equal(titleText(bubble).text, title);
+    assert.equal(titleText(bubble).size, '18px');
+    assert.equal(titleText(bubble).adjustMode, 'shrink-to-fit');
+    assert.equal(bubble.body.contents[1].width, '100px');
 });
 
 test('falls back to an article image or the absolute placeholder URL', () => {

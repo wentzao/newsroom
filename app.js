@@ -174,7 +174,7 @@ function buildLineFlexMessage(article) {
                                 contents: [{
                                     type: 'text',
                                     text: title,
-                                    size: '22px',
+                                    size: '18px',
                                     weight: 'bold',
                                     color: '#203A2D',
                                     wrap: true,
