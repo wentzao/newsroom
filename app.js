@@ -129,6 +129,39 @@ function buildLineFlexMessage(article) {
     const title = article.title || '最新消息';
     const tag = article.tag || '公告';
     const campusLabel = CAMPUS_CONFIG[activeCampus].label;
+    // Dimension-free columns keep equal widths in LINE; the fixed-height pill
+    // belongs inside each vertical column so it cannot override horizontal flex.
+    const createDetailCell = (text, action = null) => ({
+        type: 'box',
+        layout: 'vertical',
+        flex: 1,
+        contents: [{
+            type: 'box',
+            layout: 'vertical',
+            flex: 0,
+            height: '36px',
+            cornerRadius: '18px',
+            backgroundColor: action ? '#02A568' : '#EEF6F1',
+            paddingStart: '4px',
+            paddingEnd: '4px',
+            justifyContent: 'center',
+            contents: [{
+                type: 'text',
+                text,
+                size: '13px',
+                weight: 'bold',
+                color: action ? '#FFFFFF' : '#087047',
+                align: 'center',
+                gravity: 'center',
+                wrap: false,
+                maxLines: 1,
+                adjustMode: 'shrink-to-fit',
+                scaling: true,
+                flex: 0
+            }],
+            ...(action ? { action } : {})
+        }]
+    });
 
     return {
         type: 'flex',
@@ -142,94 +175,40 @@ function buildLineFlexMessage(article) {
                 size: 'full',
                 aspectRatio: '4:3',
                 aspectMode: 'fit',
-                backgroundColor: '#0A2B52',
+                backgroundColor: '#FFFFFF',
                 action: { type: 'uri', uri: articleUrl }
             },
             body: {
                 type: 'box',
-                layout: 'horizontal',
+                layout: 'vertical',
                 backgroundColor: '#FFFFFF',
-                paddingTop: '2px',
-                paddingBottom: '8px',
-                paddingStart: '4px',
-                paddingEnd: '14px',
-                spacing: '6px',
-                alignItems: 'center',
+                paddingTop: '10px',
+                paddingBottom: '12px',
+                paddingStart: '12px',
+                paddingEnd: '12px',
+                spacing: '10px',
                 contents: [
                     {
-                        type: 'box',
-                        layout: 'vertical',
-                        flex: 1,
-                        spacing: '2px',
-                        contents: [
-                            {
-                                type: 'box',
-                                layout: 'vertical',
-                                backgroundColor: '#FFFFFF',
-                                cornerRadius: '4px',
-                                paddingTop: '2px',
-                                paddingBottom: '2px',
-                                paddingStart: '10px',
-                                paddingEnd: '4px',
-                                contents: [{
-                                    type: 'text',
-                                    text: title,
-                                    size: '18px',
-                                    weight: 'bold',
-                                    color: '#203A2D',
-                                    wrap: true,
-                                    adjustMode: 'shrink-to-fit',
-                                    scaling: true
-                                }]
-                            },
-                            {
-                                type: 'box',
-                                layout: 'vertical',
-                                paddingStart: '12px',
-                                contents: [{
-                                    type: 'box',
-                                    layout: 'vertical',
-                                    backgroundColor: '#FFFFFF',
-                                    cornerRadius: '4px',
-                                    paddingAll: '4px',
-                                    contents: [{
-                                        type: 'text',
-                                        text: `${campusLabel} · ${tag}`,
-                                        size: '13px',
-                                        weight: 'bold',
-                                        color: '#087047',
-                                        wrap: true,
-                                        maxLines: 2,
-                                        adjustMode: 'shrink-to-fit',
-                                        scaling: true
-                                    }]
-                                }]
-                            }
-                        ]
+                        type: 'text',
+                        text: title,
+                        size: '18px',
+                        weight: 'bold',
+                        color: '#203A2D',
+                        align: 'center',
+                        wrap: true,
+                        adjustMode: 'shrink-to-fit',
+                        scaling: true
                     },
                     {
                         type: 'box',
-                        layout: 'vertical',
-                        flex: 0,
-                        width: '100px',
-                        height: '42px',
-                        cornerRadius: '21px',
-                        backgroundColor: '#02A568',
-                        justifyContent: 'center',
-                        contents: [{
-                            type: 'text',
-                            text: '閱讀公告',
-                            size: '16px',
-                            weight: 'bold',
-                            color: '#FFFFFF',
-                            align: 'center',
-                            gravity: 'center',
-                            adjustMode: 'shrink-to-fit',
-                            scaling: true,
-                            flex: 0,
-                            maxLines: 2
-                        }],
-                        action: { type: 'uri', label: '閱讀公告', uri: articleUrl }
+                        layout: 'horizontal',
+                        spacing: '6px',
+                        alignItems: 'center',
+                        contents: [
+                            createDetailCell(campusLabel),
+                            createDetailCell(tag),
+                            createDetailCell('閱讀公告', { type: 'uri', label: '閱讀公告', uri: articleUrl })
+                        ]
                     }
                 ]
             }

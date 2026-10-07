@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const source = ['campus.js', 'app.js'].map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
-// The user's approved borderless bubble; compare the entire layout.
+// The user's borderless, two-row layout; compare the entire layout.
 const approvedBubble = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/line-flex-bubble.json'), 'utf8'));
 const sample = {
     id: 'news-20261007-001',
@@ -63,11 +63,11 @@ function createApp({ campus = 'afterschool', inClient = true, pickerResult = { s
 }
 
 function titleText(bubble) {
-    return bubble.body.contents[0].contents[0].contents[0];
+    return bubble.body.contents[0];
 }
 
-function metadataText(bubble) {
-    return bubble.body.contents[0].contents[1].contents[0].contents[0];
+function detailCells(bubble) {
+    return bubble.body.contents[1].contents.map(column => column.contents[0]);
 }
 
 test('matches the complete approved borderless JSON', () => {
@@ -92,12 +92,13 @@ test('uses article data and the selected campus for dual-campus news', () => {
         const bubble = createApp({ campus }).build(article).contents;
         assert.equal(bubble.hero.url, article.coverImage);
         assert.equal(titleText(bubble).text, article.title);
-        assert.equal(metadataText(bubble).text, `${label} · 一般公告`);
+        assert.equal(detailCells(bubble)[0].contents[0].text, label);
+        assert.equal(detailCells(bubble)[1].contents[0].text, article.tag);
         const uri = new URL(bubble.hero.action.uri);
         assert.equal(uri.origin, 'https://liff.line.me');
         assert.equal(uri.searchParams.get('campus'), campus);
         assert.equal(uri.searchParams.get('id'), article.id);
-        assert.equal(bubble.body.contents[1].action.uri, uri.href);
+        assert.equal(detailCells(bubble)[2].action.uri, uri.href);
     }
 });
 
@@ -120,7 +121,45 @@ test('uses the smaller title size for eight Chinese characters without truncatio
     assert.equal(titleText(bubble).text, title);
     assert.equal(titleText(bubble).size, '18px');
     assert.equal(titleText(bubble).adjustMode, 'shrink-to-fit');
-    assert.equal(bubble.body.contents[1].width, '100px');
+    assert.equal(titleText(bubble).align, 'center');
+});
+
+test('centers the full-width title above three equally sized and aligned cells', () => {
+    const bubble = createApp().build(sample).contents;
+    assert.equal(bubble.body.layout, 'vertical');
+    assert.equal(bubble.body.contents.length, 2);
+    assert.equal(titleText(bubble).type, 'text');
+    assert.equal(titleText(bubble).align, 'center');
+    assert.equal(bubble.body.contents[1].layout, 'horizontal');
+    assert.equal(bubble.body.contents[1].alignItems, 'center');
+    for (const column of bubble.body.contents[1].contents) {
+        assert.equal(column.flex, 1);
+        assert.equal(column.width, undefined);
+        assert.equal(column.height, undefined);
+    }
+    const cells = detailCells(bubble);
+    assert.equal(cells.length, 3);
+    for (const cell of cells) {
+        assert.equal(cell.flex, 0);
+        assert.equal(cell.width, undefined);
+        assert.equal(cell.height, '36px');
+        assert.equal(cell.cornerRadius, '18px');
+        assert.equal(cell.justifyContent, 'center');
+        assert.equal(cell.contents[0].size, '13px');
+        assert.equal(cell.contents[0].align, 'center');
+        assert.equal(cell.contents[0].adjustMode, 'shrink-to-fit');
+    }
+    assert.equal(cells[0].action, undefined);
+    assert.equal(cells[1].action, undefined);
+    assert.equal(cells[2].action.label, '閱讀公告');
+    assert.equal(cells[2].backgroundColor, '#02A568');
+});
+
+test('uses white image letterboxing while preserving the entire 4:3 cover', () => {
+    const hero = createApp().build(sample).contents.hero;
+    assert.equal(hero.backgroundColor, '#FFFFFF');
+    assert.equal(hero.aspectRatio, '4:3');
+    assert.equal(hero.aspectMode, 'fit');
 });
 
 test('falls back to an article image or the absolute placeholder URL', () => {
@@ -130,7 +169,8 @@ test('falls back to an article image or the absolute placeholder URL', () => {
     const placeholder = app.build({ id: sample.id });
     assert.equal(placeholder.contents.hero.url, 'https://newsroom.wentzao.com/assets/backdrop.png');
     assert.equal(titleText(placeholder.contents).text, '最新消息');
-    assert.equal(metadataText(placeholder.contents).text, '安親校區 · 公告');
+    assert.equal(detailCells(placeholder.contents)[0].contents[0].text, '安親校區');
+    assert.equal(detailCells(placeholder.contents)[1].contents[0].text, '公告');
 });
 
 test('passes the approved card to the LIFF picker and clears busy state', async () => {
