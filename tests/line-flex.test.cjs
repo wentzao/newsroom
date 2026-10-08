@@ -129,7 +129,7 @@ test('keeps an eight-character title intact and left aligned', () => {
     assert.equal(titleText(bubble).align, 'start');
 });
 
-test('places category and date above the title, with the brand-colored CTA at the right', () => {
+test('groups category and date at the left above the title, keeping the CTA at the right', () => {
     const bubble = createApp().build(sample).contents;
     assert.equal(bubble.body.layout, 'vertical');
     assert.equal(bubble.body.contents.length, 2);
@@ -139,8 +139,12 @@ test('places category and date above the title, with the brand-colored CTA at th
     const metadata = metadataTexts(bubble);
     assert.equal(metadata.length, 2);
     assert.equal(metadata[0].text, sample.tag);
+    assert.equal(metadata[0].align, 'start');
+    assert.equal(metadata[0].flex, 0);
     assert.equal(metadata[1].text, '2026 年 10 月 7 日');
-    assert.equal(metadata[1].align, 'end');
+    assert.equal(metadata[1].align, 'start');
+    assert.equal(metadata[1].flex, 1);
+    assert.equal(bubble.body.contents[0].spacing, '8px');
     assert.equal(bubble.footer.justifyContent, 'end');
     assert.equal(bubble.footer.contents[0].flex, 0);
     assert.equal(bubble.footer.contents[0].width, '104px');
