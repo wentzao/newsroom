@@ -114,7 +114,7 @@ test('keeps long titles, wrapping and native shrink-to-fit without a line cap', 
     for (const title of ['親子活動、課程提醒與重要事項說明'.repeat(4), 'LongEnglishTitleWithoutSpacesForWrapping', '👑🌈 文藻最新活動通知']) {
         const text = titleText(createApp().build({ ...sample, title }).contents);
         assert.equal(text.text, title);
-        assert.equal(text.size, '20px');
+        assert.equal(text.size, 'lg');
         assert.equal(text.wrap, true);
         assert.equal(text.adjustMode, 'shrink-to-fit');
         assert.equal(text.scaling, true);
@@ -127,7 +127,7 @@ test('keeps an eight-character title intact and left aligned', () => {
     assert.equal([...title].length, 8);
     const bubble = createApp().build({ ...sample, title }).contents;
     assert.equal(titleText(bubble).text, title);
-    assert.equal(titleText(bubble).size, '20px');
+    assert.equal(titleText(bubble).size, 'lg');
     assert.equal(titleText(bubble).adjustMode, 'shrink-to-fit');
     assert.equal(titleText(bubble).align, 'start');
 });
@@ -164,6 +164,18 @@ test('groups category and date at the left, with a compact chevron beside the ti
     assert.equal(arrow.aspectMode, 'fit');
     assert.equal(arrow.url, 'https://newsroom.wentzao.com/assets/line-chevron-right.png?v=20261008.1');
     assert.equal(bubble.footer, undefined);
+});
+
+test('restores the initial LINE typography without reverting the clickable editorial layout', () => {
+    const bubble = createApp().build(sample).contents;
+    assert.equal(titleText(bubble).size, 'lg');
+    for (const text of metadataTexts(bubble)) assert.equal(text.size, 'xs');
+    assert.equal(titleText(bubble).wrap, true);
+    assert.equal(titleText(bubble).adjustMode, 'shrink-to-fit');
+    assert.equal(titleText(bubble).scaling, true);
+    assert.equal(arrowImage(bubble).size, '24px');
+    assert.equal(bubble.footer, undefined);
+    assert.deepEqual(bubble.body.action, bubble.action);
 });
 
 test('all card components inherit the same campus-preserving article action', () => {

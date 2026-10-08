@@ -43,7 +43,7 @@
           {
             "type": "text",
             "text": "課務提醒",
-            "size": "12px",
+            "size": "xs",
             "color": "#6E6E73",
             "weight": "bold",
             "flex": 0,
@@ -55,7 +55,7 @@
           {
             "type": "text",
             "text": "2026 年 10 月 7 日",
-            "size": "12px",
+            "size": "xs",
             "color": "#8A8A8E",
             "flex": 1,
             "align": "start",
@@ -76,7 +76,7 @@
             "type": "text",
             "text": "👑單字王競賽",
             "flex": 1,
-            "size": "20px",
+            "size": "lg",
             "weight": "bold",
             "color": "#1D1D1F",
             "align": "start",

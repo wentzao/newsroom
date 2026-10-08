@@ -145,7 +145,7 @@ function buildLineFlexMessage(article) {
     const metadata = [{
         type: 'text',
         text: tag,
-        size: '12px',
+        size: 'xs',
         color: '#6E6E73',
         weight: 'bold',
         flex: 0,
@@ -158,7 +158,7 @@ function buildLineFlexMessage(article) {
         metadata.push({
             type: 'text',
             text: publishDate,
-            size: '12px',
+            size: 'xs',
             color: '#8A8A8E',
             flex: 1,
             align: 'start',
@@ -213,7 +213,7 @@ function buildLineFlexMessage(article) {
                                 type: 'text',
                                 text: title,
                                 flex: 1,
-                                size: '20px',
+                                size: 'lg',
                                 weight: 'bold',
                                 color: '#1D1D1F',
                                 align: 'start',
