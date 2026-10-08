@@ -123,44 +123,49 @@ async function prepareLiff({ allowExternalRedirect = false } = {}) {
     return liffInitializationPromise;
 }
 
+function formatLinePublishDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const parts = new Intl.DateTimeFormat('zh-TW', {
+        timeZone: 'Asia/Taipei', year: 'numeric', month: 'numeric', day: 'numeric'
+    }).formatToParts(date);
+    const value = type => parts.find(part => part.type === type).value;
+    return `${value('year')} 年 ${value('month')} 月 ${value('day')} 日`;
+}
+
 function buildLineFlexMessage(article) {
     const imageUrl = getAbsoluteImageUrl(getEffectiveCoverImage(article));
     const articleUrl = getLiffArticleUrl(article.id);
     const title = article.title || '最新消息';
     const tag = article.tag || '公告';
-    const campusLabel = CAMPUS_CONFIG[activeCampus].label;
-    // Dimension-free columns keep equal widths in LINE; the fixed-height cell
-    // belongs inside each vertical column so it cannot override horizontal flex.
-    const createDetailCell = (text, action = null) => ({
-        type: 'box',
-        layout: 'vertical',
+    const publishDate = formatLinePublishDate(article.publishAt);
+    const metadata = [{
+        type: 'text',
+        text: tag,
+        size: '12px',
+        color: '#6E6E73',
+        weight: 'bold',
         flex: 1,
-        contents: [{
-            type: 'box',
-            layout: 'vertical',
+        wrap: true,
+        adjustMode: 'shrink-to-fit',
+        scaling: true
+    }];
+    if (publishDate) {
+        metadata.push({
+            type: 'text',
+            text: publishDate,
+            size: '12px',
+            color: '#8A8A8E',
             flex: 0,
-            height: '36px',
-            ...(action ? { cornerRadius: '18px', backgroundColor: '#02A568' } : {}),
-            paddingStart: '4px',
-            paddingEnd: '4px',
-            justifyContent: 'center',
-            contents: [{
-                type: 'text',
-                text,
-                size: '13px',
-                weight: 'bold',
-                color: action ? '#FFFFFF' : '#087047',
-                align: 'center',
-                gravity: 'center',
-                wrap: false,
-                maxLines: 1,
-                adjustMode: 'shrink-to-fit',
-                scaling: true,
-                flex: 0
-            }],
-            ...(action ? { action } : {})
-        }]
-    });
+            align: 'end',
+            wrap: false,
+            maxLines: 1,
+            adjustMode: 'shrink-to-fit',
+            scaling: true
+        });
+    }
 
     return {
         type: 'flex',
@@ -172,8 +177,8 @@ function buildLineFlexMessage(article) {
                 type: 'image',
                 url: imageUrl,
                 size: 'full',
-                aspectRatio: '4:3',
-                aspectMode: 'fit',
+                aspectRatio: '20:13',
+                aspectMode: 'cover',
                 backgroundColor: '#FFFFFF',
                 action: { type: 'uri', uri: articleUrl }
             },
@@ -181,35 +186,56 @@ function buildLineFlexMessage(article) {
                 type: 'box',
                 layout: 'vertical',
                 backgroundColor: '#FFFFFF',
-                paddingTop: '10px',
-                paddingBottom: '12px',
-                paddingStart: '12px',
-                paddingEnd: '12px',
-                spacing: '10px',
+                paddingTop: '20px',
+                paddingBottom: '16px',
+                paddingStart: '20px',
+                paddingEnd: '20px',
+                spacing: '8px',
                 contents: [
-                    {
-                        type: 'text',
-                        text: title,
-                        size: '18px',
-                        weight: 'bold',
-                        color: '#203A2D',
-                        align: 'center',
-                        wrap: true,
-                        adjustMode: 'shrink-to-fit',
-                        scaling: true
-                    },
                     {
                         type: 'box',
                         layout: 'horizontal',
-                        spacing: '6px',
+                        spacing: '8px',
                         alignItems: 'center',
-                        contents: [
-                            createDetailCell(campusLabel),
-                            createDetailCell(tag),
-                            createDetailCell('閱讀公告', { type: 'uri', label: '閱讀公告', uri: articleUrl })
-                        ]
+                        contents: metadata
+                    },
+                    {
+                        type: 'text',
+                        text: title,
+                        size: '20px',
+                        weight: 'bold',
+                        color: '#1D1D1F',
+                        align: 'start',
+                        wrap: true,
+                        adjustMode: 'shrink-to-fit',
+                        scaling: true
                     }
                 ]
+            },
+            footer: {
+                type: 'box',
+                layout: 'horizontal',
+                backgroundColor: '#FFFFFF',
+                paddingTop: '0px',
+                paddingBottom: '12px',
+                paddingStart: '12px',
+                paddingEnd: '12px',
+                justifyContent: 'end',
+                contents: [{
+                    type: 'box',
+                    layout: 'vertical',
+                    flex: 0,
+                    width: '104px',
+                    contents: [{
+                        type: 'button',
+                        style: 'primary',
+                        height: 'sm',
+                        color: '#02A568',
+                        adjustMode: 'shrink-to-fit',
+                        scaling: true,
+                        action: { type: 'uri', label: '查看公告', uri: articleUrl }
+                    }]
+                }]
             }
         }
     };

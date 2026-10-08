@@ -6,12 +6,13 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const source = ['campus.js', 'app.js'].map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
-// The user's borderless, two-row layout; compare the entire layout.
+// The reference card with its date moved above the title and a compact right CTA.
 const approvedBubble = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/line-flex-bubble.json'), 'utf8'));
 const sample = {
     id: 'news-20261007-001',
     title: '👑單字王競賽',
     tag: '課務提醒',
+    publishAt: '2026-10-06T16:00:00Z',
     coverImage: approvedBubble.hero.url,
     targetCampuses: ['afterschool']
 };
@@ -63,11 +64,15 @@ function createApp({ campus = 'afterschool', inClient = true, pickerResult = { s
 }
 
 function titleText(bubble) {
-    return bubble.body.contents[0];
+    return bubble.body.contents[1];
 }
 
-function detailCells(bubble) {
-    return bubble.body.contents[1].contents.map(column => column.contents[0]);
+function metadataTexts(bubble) {
+    return bubble.body.contents[0].contents;
+}
+
+function readButton(bubble) {
+    return bubble.footer.contents[0].contents[0];
 }
 
 test('matches the complete approved borderless JSON', () => {
@@ -76,7 +81,7 @@ test('matches the complete approved borderless JSON', () => {
     assert.equal(message.altText, '課務提醒｜👑單字王競賽');
     assert.deepEqual(message.contents, approvedBubble);
     assert.doesNotMatch(JSON.stringify(message), /"border(Color|Width)"/);
-    assert.equal(message.contents.footer, undefined);
+    assert.equal(readButton(message.contents).action.label, '查看公告');
 });
 
 test('uses article data and the selected campus for dual-campus news', () => {
@@ -88,17 +93,17 @@ test('uses article data and the selected campus for dual-campus news', () => {
         coverImage: 'https://imageserver.wentzao.com/another-cover.jpg',
         targetCampuses: ['kindergarten', 'afterschool']
     };
-    for (const [campus, label] of [['kindergarten', '幼兒校區'], ['afterschool', '安親校區']]) {
+    for (const campus of ['kindergarten', 'afterschool']) {
         const bubble = createApp({ campus }).build(article).contents;
         assert.equal(bubble.hero.url, article.coverImage);
         assert.equal(titleText(bubble).text, article.title);
-        assert.equal(detailCells(bubble)[0].contents[0].text, label);
-        assert.equal(detailCells(bubble)[1].contents[0].text, article.tag);
+        assert.equal(metadataTexts(bubble)[0].text, article.tag);
+        assert.doesNotMatch(JSON.stringify(bubble.body), /校區/);
         const uri = new URL(bubble.hero.action.uri);
         assert.equal(uri.origin, 'https://liff.line.me');
         assert.equal(uri.searchParams.get('campus'), campus);
         assert.equal(uri.searchParams.get('id'), article.id);
-        assert.equal(detailCells(bubble)[2].action.uri, uri.href);
+        assert.equal(readButton(bubble).action.uri, uri.href);
     }
 });
 
@@ -106,7 +111,7 @@ test('keeps long titles, wrapping and native shrink-to-fit without a line cap', 
     for (const title of ['親子活動、課程提醒與重要事項說明'.repeat(4), 'LongEnglishTitleWithoutSpacesForWrapping', '👑🌈 文藻最新活動通知']) {
         const text = titleText(createApp().build({ ...sample, title }).contents);
         assert.equal(text.text, title);
-        assert.equal(text.size, '18px');
+        assert.equal(text.size, '20px');
         assert.equal(text.wrap, true);
         assert.equal(text.adjustMode, 'shrink-to-fit');
         assert.equal(text.scaling, true);
@@ -114,59 +119,65 @@ test('keeps long titles, wrapping and native shrink-to-fit without a line cap', 
     }
 });
 
-test('uses the smaller title size for eight Chinese characters without truncation', () => {
+test('keeps an eight-character title intact and left aligned', () => {
     const title = '國慶連假休假通知';
     assert.equal([...title].length, 8);
     const bubble = createApp().build({ ...sample, title }).contents;
     assert.equal(titleText(bubble).text, title);
-    assert.equal(titleText(bubble).size, '18px');
+    assert.equal(titleText(bubble).size, '20px');
     assert.equal(titleText(bubble).adjustMode, 'shrink-to-fit');
-    assert.equal(titleText(bubble).align, 'center');
+    assert.equal(titleText(bubble).align, 'start');
 });
 
-test('centers the full-width title above three equally sized and aligned cells', () => {
+test('places category and date above the title, with the brand-colored CTA at the right', () => {
     const bubble = createApp().build(sample).contents;
     assert.equal(bubble.body.layout, 'vertical');
     assert.equal(bubble.body.contents.length, 2);
     assert.equal(titleText(bubble).type, 'text');
-    assert.equal(titleText(bubble).align, 'center');
-    assert.equal(bubble.body.contents[1].layout, 'horizontal');
-    assert.equal(bubble.body.contents[1].alignItems, 'center');
-    for (const column of bubble.body.contents[1].contents) {
-        assert.equal(column.flex, 1);
-        assert.equal(column.width, undefined);
-        assert.equal(column.height, undefined);
-    }
-    const cells = detailCells(bubble);
-    assert.equal(cells.length, 3);
-    for (const cell of cells) {
-        assert.equal(cell.flex, 0);
-        assert.equal(cell.width, undefined);
-        assert.equal(cell.height, '36px');
-        assert.equal(cell.justifyContent, 'center');
-        assert.equal(cell.contents[0].size, '13px');
-        assert.equal(cell.contents[0].align, 'center');
-        assert.equal(cell.contents[0].adjustMode, 'shrink-to-fit');
-    }
-    assert.equal(cells[0].action, undefined);
-    assert.equal(cells[1].action, undefined);
-    for (const cell of cells.slice(0, 2)) {
-        assert.equal(cell.backgroundColor, undefined);
-        assert.equal(cell.cornerRadius, undefined);
-        assert.equal(cell.borderColor, undefined);
-        assert.equal(cell.borderWidth, undefined);
-        assert.equal(cell.contents[0].color, '#087047');
-    }
-    assert.equal(cells[2].action.label, '閱讀公告');
-    assert.equal(cells[2].backgroundColor, '#02A568');
-    assert.equal(cells[2].cornerRadius, '18px');
+    assert.equal(titleText(bubble).align, 'start');
+    assert.equal(bubble.body.contents[0].layout, 'horizontal');
+    const metadata = metadataTexts(bubble);
+    assert.equal(metadata.length, 2);
+    assert.equal(metadata[0].text, sample.tag);
+    assert.equal(metadata[1].text, '2026 年 10 月 7 日');
+    assert.equal(metadata[1].align, 'end');
+    assert.equal(bubble.footer.justifyContent, 'end');
+    assert.equal(bubble.footer.contents[0].flex, 0);
+    assert.equal(bubble.footer.contents[0].width, '104px');
+    const button = readButton(bubble);
+    assert.equal(button.type, 'button');
+    assert.equal(button.style, 'primary');
+    assert.equal(button.height, 'sm');
+    assert.equal(button.color, '#02A568');
+    assert.equal(button.action.label, '查看公告');
 });
 
-test('uses white image letterboxing while preserving the entire 4:3 cover', () => {
+test('restores the reference 20:13 cover image', () => {
     const hero = createApp().build(sample).contents.hero;
     assert.equal(hero.backgroundColor, '#FFFFFF');
-    assert.equal(hero.aspectRatio, '4:3');
-    assert.equal(hero.aspectMode, 'fit');
+    assert.equal(hero.aspectRatio, '20:13');
+    assert.equal(hero.aspectMode, 'cover');
+});
+
+test('formats the public date in Taiwan, including midnight and year boundaries', () => {
+    for (const [publishAt, expected] of [
+        ['2026-07-31T16:00:00Z', '2026 年 8 月 1 日'],
+        ['2026-10-07T15:59:59Z', '2026 年 10 月 7 日'],
+        ['2026-10-07T16:00:00Z', '2026 年 10 月 8 日'],
+        ['2026-12-31T16:00:00Z', '2027 年 1 月 1 日']
+    ]) {
+        const bubble = createApp().build({ ...sample, publishAt, updatedAt: '2031-01-01T00:00:00Z' }).contents;
+        assert.equal(metadataTexts(bubble)[1].text, expected);
+    }
+});
+
+test('omits absent or invalid dates instead of producing blank Flex text', () => {
+    for (const publishAt of [undefined, null, '', 'not-a-date']) {
+        const bubble = createApp().build({ ...sample, publishAt }).contents;
+        assert.equal(metadataTexts(bubble).length, 1);
+        assert.equal(metadataTexts(bubble)[0].text, sample.tag);
+        assert.doesNotMatch(JSON.stringify(bubble), /Invalid Date|"text":""/);
+    }
 });
 
 test('falls back to an article image or the absolute placeholder URL', () => {
@@ -176,8 +187,7 @@ test('falls back to an article image or the absolute placeholder URL', () => {
     const placeholder = app.build({ id: sample.id });
     assert.equal(placeholder.contents.hero.url, 'https://newsroom.wentzao.com/assets/backdrop.png');
     assert.equal(titleText(placeholder.contents).text, '最新消息');
-    assert.equal(detailCells(placeholder.contents)[0].contents[0].text, '安親校區');
-    assert.equal(detailCells(placeholder.contents)[1].contents[0].text, '公告');
+    assert.equal(metadataTexts(placeholder.contents)[0].text, '公告');
 });
 
 test('passes the approved card to the LIFF picker and clears busy state', async () => {

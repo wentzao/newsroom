@@ -5,8 +5,8 @@
     "type": "image",
     "url": "https://imageserver.wentzao.com/images/contactbook/news-cover/1791364778833_b9e8f4.jpg",
     "size": "full",
-    "aspectRatio": "4:3",
-    "aspectMode": "fit",
+    "aspectRatio": "20:13",
+    "aspectMode": "cover",
     "backgroundColor": "#FFFFFF",
     "action": {
       "type": "uri",
@@ -17,131 +17,84 @@
     "type": "box",
     "layout": "vertical",
     "backgroundColor": "#FFFFFF",
-    "paddingTop": "10px",
-    "paddingBottom": "12px",
-    "paddingStart": "12px",
-    "paddingEnd": "12px",
-    "spacing": "10px",
+    "paddingTop": "20px",
+    "paddingBottom": "16px",
+    "paddingStart": "20px",
+    "paddingEnd": "20px",
+    "spacing": "8px",
     "contents": [
-      {
-        "type": "text",
-        "text": "👑單字王競賽",
-        "size": "18px",
-        "weight": "bold",
-        "color": "#203A2D",
-        "align": "center",
-        "wrap": true,
-        "adjustMode": "shrink-to-fit",
-        "scaling": true
-      },
       {
         "type": "box",
         "layout": "horizontal",
-        "spacing": "6px",
+        "spacing": "8px",
         "alignItems": "center",
         "contents": [
           {
-            "type": "box",
-            "layout": "vertical",
+            "type": "text",
+            "text": "課務提醒",
+            "size": "12px",
+            "color": "#6E6E73",
+            "weight": "bold",
             "flex": 1,
-            "contents": [
-              {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 0,
-                "height": "36px",
-                "paddingStart": "4px",
-                "paddingEnd": "4px",
-                "justifyContent": "center",
-                "contents": [
-                  {
-                    "type": "text",
-                    "text": "安親校區",
-                    "size": "13px",
-                    "weight": "bold",
-                    "color": "#087047",
-                    "align": "center",
-                    "gravity": "center",
-                    "wrap": false,
-                    "maxLines": 1,
-                    "adjustMode": "shrink-to-fit",
-                    "scaling": true,
-                    "flex": 0
-                  }
-                ]
-              }
-            ]
+            "wrap": true,
+            "adjustMode": "shrink-to-fit",
+            "scaling": true
           },
           {
-            "type": "box",
-            "layout": "vertical",
-            "flex": 1,
-            "contents": [
-              {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 0,
-                "height": "36px",
-                "paddingStart": "4px",
-                "paddingEnd": "4px",
-                "justifyContent": "center",
-                "contents": [
-                  {
-                    "type": "text",
-                    "text": "課務提醒",
-                    "size": "13px",
-                    "weight": "bold",
-                    "color": "#087047",
-                    "align": "center",
-                    "gravity": "center",
-                    "wrap": false,
-                    "maxLines": 1,
-                    "adjustMode": "shrink-to-fit",
-                    "scaling": true,
-                    "flex": 0
-                  }
-                ]
-              }
-            ]
-          },
+            "type": "text",
+            "text": "2026 年 10 月 7 日",
+            "size": "12px",
+            "color": "#8A8A8E",
+            "flex": 0,
+            "align": "end",
+            "wrap": false,
+            "maxLines": 1,
+            "adjustMode": "shrink-to-fit",
+            "scaling": true
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "👑單字王競賽",
+        "size": "20px",
+        "weight": "bold",
+        "color": "#1D1D1F",
+        "align": "start",
+        "wrap": true,
+        "adjustMode": "shrink-to-fit",
+        "scaling": true
+      }
+    ]
+  },
+  "footer": {
+    "type": "box",
+    "layout": "horizontal",
+    "backgroundColor": "#FFFFFF",
+    "paddingTop": "0px",
+    "paddingBottom": "12px",
+    "paddingStart": "12px",
+    "paddingEnd": "12px",
+    "justifyContent": "end",
+    "contents": [
+      {
+        "type": "box",
+        "layout": "vertical",
+        "flex": 0,
+        "width": "104px",
+        "contents": [
           {
-            "type": "box",
-            "layout": "vertical",
-            "flex": 1,
-            "contents": [
-              {
-                "type": "box",
-                "layout": "vertical",
-                "flex": 0,
-                "height": "36px",
-                "cornerRadius": "18px",
-                "backgroundColor": "#02A568",
-                "paddingStart": "4px",
-                "paddingEnd": "4px",
-                "justifyContent": "center",
-                "contents": [
-                  {
-                    "type": "text",
-                    "text": "閱讀公告",
-                    "size": "13px",
-                    "weight": "bold",
-                    "color": "#FFFFFF",
-                    "align": "center",
-                    "gravity": "center",
-                    "wrap": false,
-                    "maxLines": 1,
-                    "adjustMode": "shrink-to-fit",
-                    "scaling": true,
-                    "flex": 0
-                  }
-                ],
-                "action": {
-                  "type": "uri",
-                  "label": "閱讀公告",
-                  "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
-                }
-              }
-            ]
+            "type": "button",
+            "style": "primary",
+            "height": "sm",
+            "color": "#02A568",
+            "adjustMode": "shrink-to-fit",
+            "scaling": true,
+            "action": {
+              "type": "uri",
+              "label": "查看公告",
+              "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
+            }
           }
         ]
       }
