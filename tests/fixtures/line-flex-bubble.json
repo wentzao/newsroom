@@ -1,6 +1,11 @@
 {
   "type": "bubble",
   "size": "mega",
+  "action": {
+    "type": "uri",
+    "label": "查看公告",
+    "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
+  },
   "hero": {
     "type": "image",
     "url": "https://imageserver.wentzao.com/images/contactbook/news-cover/1791364778833_b9e8f4.jpg",
@@ -10,6 +15,7 @@
     "backgroundColor": "#FFFFFF",
     "action": {
       "type": "uri",
+      "label": "查看公告",
       "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
     }
   },
@@ -17,10 +23,15 @@
     "type": "box",
     "layout": "vertical",
     "backgroundColor": "#FFFFFF",
-    "paddingTop": "20px",
+    "action": {
+      "type": "uri",
+      "label": "查看公告",
+      "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
+    },
+    "paddingTop": "12px",
     "paddingBottom": "16px",
-    "paddingStart": "20px",
-    "paddingEnd": "20px",
+    "paddingStart": "16px",
+    "paddingEnd": "16px",
     "spacing": "8px",
     "contents": [
       {
@@ -56,46 +67,30 @@
         ]
       },
       {
-        "type": "text",
-        "text": "👑單字王競賽",
-        "size": "20px",
-        "weight": "bold",
-        "color": "#1D1D1F",
-        "align": "start",
-        "wrap": true,
-        "adjustMode": "shrink-to-fit",
-        "scaling": true
-      }
-    ]
-  },
-  "footer": {
-    "type": "box",
-    "layout": "horizontal",
-    "backgroundColor": "#FFFFFF",
-    "paddingTop": "0px",
-    "paddingBottom": "12px",
-    "paddingStart": "12px",
-    "paddingEnd": "12px",
-    "justifyContent": "end",
-    "contents": [
-      {
         "type": "box",
-        "layout": "vertical",
-        "flex": 0,
-        "width": "104px",
+        "layout": "horizontal",
+        "spacing": "12px",
+        "alignItems": "center",
         "contents": [
           {
-            "type": "button",
-            "style": "primary",
-            "height": "sm",
-            "color": "#02A568",
+            "type": "text",
+            "text": "👑單字王競賽",
+            "flex": 1,
+            "size": "20px",
+            "weight": "bold",
+            "color": "#1D1D1F",
+            "align": "start",
+            "wrap": true,
             "adjustMode": "shrink-to-fit",
-            "scaling": true,
-            "action": {
-              "type": "uri",
-              "label": "查看公告",
-              "uri": "https://liff.line.me/1660786685-5GLgRIGc?campus=afterschool&id=news-20261007-001"
-            }
+            "scaling": true
+          },
+          {
+            "type": "image",
+            "url": "https://newsroom.wentzao.com/assets/line-chevron-right.png?v=20261008.1",
+            "flex": 0,
+            "size": "24px",
+            "aspectRatio": "1:1",
+            "aspectMode": "fit"
           }
         ]
       }

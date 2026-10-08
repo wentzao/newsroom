@@ -138,6 +138,7 @@ function formatLinePublishDate(dateString) {
 function buildLineFlexMessage(article) {
     const imageUrl = getAbsoluteImageUrl(getEffectiveCoverImage(article));
     const articleUrl = getLiffArticleUrl(article.id);
+    const openArticleAction = { type: 'uri', label: '查看公告', uri: articleUrl };
     const title = article.title || '最新消息';
     const tag = article.tag || '公告';
     const publishDate = formatLinePublishDate(article.publishAt);
@@ -174,6 +175,7 @@ function buildLineFlexMessage(article) {
         contents: {
             type: 'bubble',
             size: 'mega',
+            action: openArticleAction,
             hero: {
                 type: 'image',
                 url: imageUrl,
@@ -181,16 +183,17 @@ function buildLineFlexMessage(article) {
                 aspectRatio: '20:13',
                 aspectMode: 'cover',
                 backgroundColor: '#FFFFFF',
-                action: { type: 'uri', uri: articleUrl }
+                action: openArticleAction
             },
             body: {
                 type: 'box',
                 layout: 'vertical',
                 backgroundColor: '#FFFFFF',
-                paddingTop: '20px',
+                action: openArticleAction,
+                paddingTop: '12px',
                 paddingBottom: '16px',
-                paddingStart: '20px',
-                paddingEnd: '20px',
+                paddingStart: '16px',
+                paddingEnd: '16px',
                 spacing: '8px',
                 contents: [
                     {
@@ -201,42 +204,34 @@ function buildLineFlexMessage(article) {
                         contents: metadata
                     },
                     {
-                        type: 'text',
-                        text: title,
-                        size: '20px',
-                        weight: 'bold',
-                        color: '#1D1D1F',
-                        align: 'start',
-                        wrap: true,
-                        adjustMode: 'shrink-to-fit',
-                        scaling: true
+                        type: 'box',
+                        layout: 'horizontal',
+                        spacing: '12px',
+                        alignItems: 'center',
+                        contents: [
+                            {
+                                type: 'text',
+                                text: title,
+                                flex: 1,
+                                size: '20px',
+                                weight: 'bold',
+                                color: '#1D1D1F',
+                                align: 'start',
+                                wrap: true,
+                                adjustMode: 'shrink-to-fit',
+                                scaling: true
+                            },
+                            {
+                                type: 'image',
+                                url: getAbsoluteImageUrl('/assets/line-chevron-right.png?v=20261008.1'),
+                                flex: 0,
+                                size: '24px',
+                                aspectRatio: '1:1',
+                                aspectMode: 'fit'
+                            }
+                        ]
                     }
                 ]
-            },
-            footer: {
-                type: 'box',
-                layout: 'horizontal',
-                backgroundColor: '#FFFFFF',
-                paddingTop: '0px',
-                paddingBottom: '12px',
-                paddingStart: '12px',
-                paddingEnd: '12px',
-                justifyContent: 'end',
-                contents: [{
-                    type: 'box',
-                    layout: 'vertical',
-                    flex: 0,
-                    width: '104px',
-                    contents: [{
-                        type: 'button',
-                        style: 'primary',
-                        height: 'sm',
-                        color: '#02A568',
-                        adjustMode: 'shrink-to-fit',
-                        scaling: true,
-                        action: { type: 'uri', label: '查看公告', uri: articleUrl }
-                    }]
-                }]
             }
         }
     };

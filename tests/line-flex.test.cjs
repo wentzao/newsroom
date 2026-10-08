@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const source = ['campus.js', 'app.js'].map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
-// The reference card with its date moved above the title and a compact right CTA.
+// The selected editorial card: left metadata, headline chevron, no button.
 const approvedBubble = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/line-flex-bubble.json'), 'utf8'));
 const sample = {
     id: 'news-20261007-001',
@@ -64,15 +64,15 @@ function createApp({ campus = 'afterschool', inClient = true, pickerResult = { s
 }
 
 function titleText(bubble) {
-    return bubble.body.contents[1];
+    return bubble.body.contents[1].contents[0];
 }
 
 function metadataTexts(bubble) {
     return bubble.body.contents[0].contents;
 }
 
-function readButton(bubble) {
-    return bubble.footer.contents[0].contents[0];
+function arrowImage(bubble) {
+    return bubble.body.contents[1].contents[1];
 }
 
 test('matches the complete approved borderless JSON', () => {
@@ -81,7 +81,9 @@ test('matches the complete approved borderless JSON', () => {
     assert.equal(message.altText, '課務提醒｜👑單字王競賽');
     assert.deepEqual(message.contents, approvedBubble);
     assert.doesNotMatch(JSON.stringify(message), /"border(Color|Width)"/);
-    assert.equal(readButton(message.contents).action.label, '查看公告');
+    assert.equal(message.contents.action.label, '查看公告');
+    assert.equal(message.contents.footer, undefined);
+    assert.doesNotMatch(JSON.stringify(message), /"type":"button"|"text":"查看公告"/);
 });
 
 test('uses article data and the selected campus for dual-campus news', () => {
@@ -103,7 +105,8 @@ test('uses article data and the selected campus for dual-campus news', () => {
         assert.equal(uri.origin, 'https://liff.line.me');
         assert.equal(uri.searchParams.get('campus'), campus);
         assert.equal(uri.searchParams.get('id'), article.id);
-        assert.equal(readButton(bubble).action.uri, uri.href);
+        assert.equal(bubble.action.uri, uri.href);
+        assert.equal(bubble.body.action.uri, uri.href);
     }
 });
 
@@ -129,7 +132,7 @@ test('keeps an eight-character title intact and left aligned', () => {
     assert.equal(titleText(bubble).align, 'start');
 });
 
-test('groups category and date at the left above the title, keeping the CTA at the right', () => {
+test('groups category and date at the left, with a compact chevron beside the title', () => {
     const bubble = createApp().build(sample).contents;
     assert.equal(bubble.body.layout, 'vertical');
     assert.equal(bubble.body.contents.length, 2);
@@ -145,15 +148,53 @@ test('groups category and date at the left above the title, keeping the CTA at t
     assert.equal(metadata[1].align, 'start');
     assert.equal(metadata[1].flex, 1);
     assert.equal(bubble.body.contents[0].spacing, '8px');
-    assert.equal(bubble.footer.justifyContent, 'end');
-    assert.equal(bubble.footer.contents[0].flex, 0);
-    assert.equal(bubble.footer.contents[0].width, '104px');
-    const button = readButton(bubble);
-    assert.equal(button.type, 'button');
-    assert.equal(button.style, 'primary');
-    assert.equal(button.height, 'sm');
-    assert.equal(button.color, '#02A568');
-    assert.equal(button.action.label, '查看公告');
+    assert.equal(bubble.body.paddingTop, '12px');
+    assert.equal(bubble.body.paddingStart, '16px');
+    assert.equal(bubble.body.paddingEnd, '16px');
+    const titleRow = bubble.body.contents[1];
+    assert.equal(titleRow.layout, 'horizontal');
+    assert.equal(titleRow.alignItems, 'center');
+    assert.equal(titleRow.spacing, '12px');
+    assert.equal(titleText(bubble).flex, 1);
+    const arrow = arrowImage(bubble);
+    assert.equal(arrow.type, 'image');
+    assert.equal(arrow.flex, 0);
+    assert.equal(arrow.size, '24px');
+    assert.equal(arrow.aspectRatio, '1:1');
+    assert.equal(arrow.aspectMode, 'fit');
+    assert.equal(arrow.url, 'https://newsroom.wentzao.com/assets/line-chevron-right.png?v=20261008.1');
+    assert.equal(bubble.footer, undefined);
+});
+
+test('all card components inherit the same campus-preserving article action', () => {
+    const bubble = createApp().build(sample).contents;
+    const expected = bubble.action;
+    let checked = 0;
+    function check(node, inheritedAction) {
+        const action = node.action || inheritedAction;
+        assert.deepEqual(action, expected, `${node.type} must open the same article`);
+        checked++;
+        for (const child of [node.hero, node.body, ...(node.contents || [])].filter(Boolean)) {
+            check(child, action);
+        }
+    }
+    check(bubble);
+    assert.equal(checked, 9);
+    assert.equal(expected.type, 'uri');
+    const url = new URL(expected.uri);
+    assert.equal(url.searchParams.get('campus'), 'afterschool');
+    assert.equal(url.searchParams.get('id'), sample.id);
+});
+
+test('ships a small transparent PNG chevron and its brand-colored licensed source', () => {
+    const png = fs.readFileSync(path.join(root, 'assets/line-chevron-right.png'));
+    assert.deepEqual(png.subarray(0, 8), Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    assert.equal(png.readUInt32BE(16), 72);
+    assert.equal(png.readUInt32BE(20), 72);
+    assert.equal(png[25], 6, 'RGBA color type preserves transparency');
+    assert.ok(png.length < 1024 * 1024);
+    assert.match(fs.readFileSync(path.join(root, 'assets/icons/caret-right-bold.svg'), 'utf8'), /fill="#02A568"/);
+    assert.match(fs.readFileSync(path.join(root, 'assets/icons/PHOSPHOR-LICENSE.txt'), 'utf8'), /MIT License/);
 });
 
 test('restores the reference 20:13 cover image', () => {
