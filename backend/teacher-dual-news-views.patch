@@ -1,0 +1,70 @@
+--- a/src/pages/news/NewsManager.jsx
++++ b/src/pages/news/NewsManager.jsx
+@@ -18,6 +18,7 @@
+ import './NewsManager.css';
+ import NewsMobileList from './NewsMobileList';
+ import NewsTiming from './NewsTiming.jsx';
++import NewsViewStats from './NewsViewStats';
+ import NewsCampusFilters from './NewsCampusFilters';
+ import NewsSearch from './NewsSearch';
+ import NewsLinkActions from './NewsLinkActions';
+@@ -660,6 +661,12 @@
+             render: (_, row) => <NewsTiming item={row} />,
+         },
+         {
++            title: '觀看統計',
++            key: 'viewStats',
++            width: 190,
++            render: (_, row) => <NewsViewStats item={row} />,
++        },
++        {
+             title: '狀態',
+             dataIndex: 'status',
+             width: 110,
+--- a/src/pages/news/NewsMobileList.jsx
++++ b/src/pages/news/NewsMobileList.jsx
+@@ -3,6 +3,7 @@
+ import { EditOutlined, LinkOutlined, MoreOutlined, PushpinOutlined } from '@ant-design/icons';
+ import CachedImage from '../../components/CachedImage';
+ import NewsTiming from './NewsTiming.jsx';
++import NewsViewStats from './NewsViewStats';
+ import NewsCampusFilters from './NewsCampusFilters';
+ import NewsSearch from './NewsSearch';
+ import { getNewsDisplayStatus } from './newsTiming';
+@@ -59,6 +60,7 @@
+                         {item.coverImage && <CachedImage src={item.coverImage} alt="" cacheKey="news" />}
+                     </button>
+                     <NewsTiming item={item} />
++                    <NewsViewStats item={item} />
+                     <div className="news-mobile-card-bottom">
+                         <div className="news-mobile-card-campuses">
+                             {(item.targetCampuses || ['kindergarten']).map(value => <span key={value}>{value === 'afterschool' ? '安親校區' : '幼兒校區'}</span>)}
+--- a/src/pages/news/NewsManager.css
++++ b/src/pages/news/NewsManager.css
+@@ -525,3 +525,9 @@
+ [data-theme="dark"] .news-pin-btn {
+     color: #444 !important;
+ }
++
++/* Separate public totals from browser-deduplicated readership. */
++.news-view-stats { display: grid; gap: 4px; font-size: 12px; color: #66736d; }
++.news-view-stats > div { display: flex; align-items: baseline; gap: 6px; }
++.news-view-stats strong { color: #1b3027; font-size: 14px; font-variant-numeric: tabular-nums; }
++.news-mobile-card .news-view-stats { margin: 10px 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+--- /dev/null
++++ b/src/pages/news/NewsViewStats.jsx
+@@ -0,0 +1,14 @@
++function formatCount(value) {
++    return Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('zh-TW') : '—';
++}
++
++export default function NewsViewStats({ item }) {
++    const available = item.viewMetricsVersion === 2;
++    const detail = available && Number.isSafeInteger(item.viewOffset)
++        ? `起始值 ${formatCount(item.viewOffset)} ＋ 實際瀏覽 ${formatCount(item.actualViewCount)} 次。實際人數依瀏覽器去重，重整不增加；不同裝置分開計算。`
++        : '雙統計尚未啟用，或教師身分尚未驗證。';
++    return <div className="news-view-stats" title={detail}>
++        <div><span>對外瀏覽</span><strong data-view-metric="public">{available ? formatCount(item.viewCount) : '—'}</strong><span>次</span></div>
++        <div><span>實際人數</span><strong data-view-metric="unique">{available ? formatCount(item.uniqueViewCount) : '—'}</strong><span>人</span></div>
++    </div>;
++}

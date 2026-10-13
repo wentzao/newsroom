@@ -155,7 +155,22 @@ function renderArticle(article) {
     document.querySelector('.article-tag').textContent = article.tag || '公告';
     document.querySelector('.article-date').textContent = formatDate(article.publishAt);
     document.querySelector('.article-title').textContent = article.title;
-    document.querySelector('.article-meta').insertAdjacentHTML('beforeend', NewsViews.markup(article));
+    const actions = document.getElementById('article-actions');
+    actions.querySelector('.news-view-count')?.remove();
+    actions.insertAdjacentHTML('afterbegin', NewsViews.markup(article));
+    actions.querySelector('.standalone-share-btn').onclick = async () => {
+        const status = actions.querySelector('.share-status');
+        const shareData = { title: article.title, url: `https://newsroom.wentzao.com${getNewsroomPath(article.id)}` };
+        try {
+            if (navigator.share) await navigator.share(shareData);
+            else {
+                await navigator.clipboard.writeText(shareData.url);
+                status.textContent = '連結已複製，可貼到要分享的地方。';
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') status.textContent = '目前無法分享，請稍後再試。';
+        }
+    };
 
     // Build content
     let contentHtml = '';
@@ -257,7 +272,6 @@ function renderMoreNews(newsItems) {
                     <span class="more-news-tag">${news.tag || '公告'}</span>
                     <h3 class="more-news-title">${news.title}</h3>
                     <time class="more-news-date">${formatDate(news.publishAt)}</time>
-                    ${NewsViews.markup(news)}
                 </div>
             </a>
         `;

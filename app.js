@@ -452,9 +452,10 @@ function renderContentBlocks(blocks) {
 /**
  * Render full article HTML for the overlay
  */
-function buildArticleShareActions() {
+function buildArticleShareActions(article) {
     return `
-        <div class="article-share-actions article-share-actions-bottom" aria-label="分享這則消息">
+        <div class="article-share-actions article-share-actions-bottom" aria-label="觀看與分享">
+            ${NewsViews.markup(article)}
             <button class="article-share-btn system-share-btn" type="button" aria-label="分享這則消息">
                 <svg class="share-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M12 15.5V3.5M7.5 8 12 3.5 16.5 8M5 12.5v6.25c0 .69.56 1.25 1.25 1.25h11.5c.69 0 1.25-.56 1.25-1.25V12.5" />
@@ -510,7 +511,6 @@ function buildArticleHtml(article) {
                     <div class="article-meta">
                         <span class="article-tag">${article.tag || '公告'}</span>
                         <span class="article-date">${formatDate(article.publishAt)}</span>
-                        ${NewsViews.markup(article)}
                     </div>
                     <h1 class="article-title">${article.title}</h1>
                 </div>
@@ -522,7 +522,7 @@ function buildArticleHtml(article) {
             </div>
 
             <!-- Repeat the action at the end of a long article. -->
-            ${buildArticleShareActions()}
+            ${buildArticleShareActions(article)}
         </article>
         
         <!-- More News Section -->
@@ -588,7 +588,6 @@ function renderMoreNews(currentId, overlayContext) {
                     <span class="more-news-tag">${news.tag || '公告'}</span>
                     <h3 class="more-news-title">${news.title}</h3>
                     <time class="more-news-date">${formatDate(news.publishAt)}</time>
-                    ${NewsViews.markup(news)}
                 </div>
             </a>
         `;
@@ -958,7 +957,6 @@ function createFeaturedCard(news) {
                 <span class="${tagClass}">${news.tag || '公告'}</span>
                 <h2 class="featured-title">${news.title}</h2>
                 <time class="featured-date">${formatDate(news.publishAt)}</time>
-                ${NewsViews.markup(news)}
             </div>
         </article>
     `;
@@ -1009,7 +1007,6 @@ function createNewsCard(news, isSmall = false, isMobileCompact = isSmall) {
                 <span class="${tagClass}">${news.tag || '公告'}</span>
                 <h3 class="news-card-title">${news.title}</h3>
                 <time class="news-card-date">${formatDate(news.publishAt)}</time>
-                ${NewsViews.markup(news)}
             </div>
         </article>
     `;

@@ -1,0 +1,436 @@
+--- a/routes/news_routes.py
++++ b/routes/news_routes.py
+@@ -1,5 +1,5 @@
+ from flask import Blueprint, request, jsonify
+-from services.teacher_auth import require_parent_or_teacher, require_teacher
++from services.teacher_auth import require_parent_or_teacher, require_teacher, resolve_user
+ from datetime import datetime, timezone
+ from services.data_service import DataService
+ from services.push_outbox_service import (
+@@ -48,20 +48,42 @@
+     conn = data_service.get_db()
+     try:
+         cols = [r[1] for r in conn.execute('PRAGMA table_info(news)').fetchall()]
+-        if 'target_campuses' not in cols or 'view_count' not in cols:
++        if any(name not in cols for name in ('target_campuses', 'view_count', 'total_view_count', 'view_offset')):
+             # Back up the live DB before changing the schema. Existing rows
+             # receive the kindergarten default without rewriting article data.
+-            migration = 'news-campuses' if 'target_campuses' not in cols else 'news-views'
++            migration = ('news-campuses' if 'target_campuses' not in cols else
++                         'news-views' if 'view_count' not in cols else 'dual-news-views')
+             backup_path = data_service.db_path + '.backup-before-' + migration + '-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+             backup = sqlite3.connect(backup_path)
+             try:
+                 conn.backup(backup)
+             finally:
+                 backup.close()
++        # Keep column creation, historical totals and one-time starting values
++        # atomic. Recheck after the lock in case another worker migrated first.
++        conn.execute('BEGIN IMMEDIATE')
++        cols = [r[1] for r in conn.execute('PRAGMA table_info(news)').fetchall()]
+         if 'target_campuses' not in cols:
+             conn.execute("ALTER TABLE news ADD COLUMN target_campuses TEXT NOT NULL DEFAULT '[\"kindergarten\"]'")
+         if 'view_count' not in cols:
+             conn.execute('ALTER TABLE news ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0')
++        if 'total_view_count' not in cols:
++            conn.execute('ALTER TABLE news ADD COLUMN total_view_count INTEGER NOT NULL DEFAULT 0')
++            # Historical repeat views were never recorded; preserve the known
++            # readership as the minimum historical total, without inventing it.
++            conn.execute('UPDATE news SET total_view_count = view_count')
++        if 'view_offset' not in cols:
++            conn.execute('ALTER TABLE news ADD COLUMN view_offset INTEGER NOT NULL DEFAULT 0')
++            for row in conn.execute('SELECT id FROM news').fetchall():
++                conn.execute('UPDATE news SET view_offset = ? WHERE id = ?',
++                             (random.randint(100, 200), row['id']))
++        conn.execute('''CREATE TABLE IF NOT EXISTS news_view_events (
++            news_id TEXT NOT NULL,
++            event_id TEXT NOT NULL,
++            viewed_at TEXT NOT NULL,
++            PRIMARY KEY (news_id, event_id),
++            FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
++        )''')
+         conn.execute('''CREATE TABLE IF NOT EXISTS news_readers (
+             news_id TEXT NOT NULL,
+             visitor_hash TEXT NOT NULL,
+@@ -106,11 +128,11 @@
+         result.append(b)
+     return result
+ 
+-def format_news(r):
++def format_news(r, include_stats=False):
+     keys = r.keys()
+     pending_draft_raw = r['pending_draft'] if 'pending_draft' in keys else None
+     pending_draft = load_json(pending_draft_raw) if pending_draft_raw else None
+-    return {
++    result = {
+         'id': r['id'],
+         'title': r['title'],
+         'tag': r['tag'],
+@@ -131,8 +153,13 @@
+         'pendingDraft': pending_draft,
+         'hasDraft': pending_draft is not None,
+         'pinOrder': r['pin_order'] if 'pin_order' in keys else None,
+-        'viewCount': r['view_count'],
++        'viewCount': r['total_view_count'] + r['view_offset'],
++        'viewMetricsVersion': 2,
+     }
++    if include_stats:
++        result.update(uniqueViewCount=r['view_count'], actualViewCount=r['total_view_count'],
++                      viewOffset=r['view_offset'])
++    return result
+ 
+ @news_bp.route('/', methods=['GET'])
+ def list_news():
+@@ -140,6 +167,10 @@
+     limit = request.args.get('limit', 10, type=int)
+     target_class = request.args.get('class', None)
+     status_filter = request.args.get('status', 'published')
++    # Real metrics are disclosed only to a verified teacher, even when the
++    # application's general authentication rollout is in permissive log mode.
++    _, auth_failure = resolve_user(('teacher',))
++    include_stats = status_filter == 'all' and auth_failure is None
+     # Existing kindergarten apps keep their current audience. The editor
+     # requests status=all and sees all campuses unless it selects a filter.
+     campus = request.args.get('campus', None if status_filter == 'all' else 'kindergarten')
+@@ -171,7 +202,7 @@
+             if target_class and t_classes and target_class not in t_classes:
+                 continue
+ 
+-            filtered.append(format_news(r))
++            filtered.append(format_news(r, include_stats=include_stats))
+ 
+         # Sort: pinned first by pin_order ASC (None last), then non-pinned by publishAt DESC
+         pinned = [x for x in filtered if x.get('isPinned')]
+@@ -215,7 +246,11 @@
+                 'pinOrder': item.get('pinOrder'),
+                 'targetCampuses': item.get('targetCampuses'),
+                 'viewCount': item['viewCount'],
++                'viewMetricsVersion': 2,
+             })
++            if include_stats:
++                result[-1].update(uniqueViewCount=item['uniqueViewCount'],
++                                  actualViewCount=item['actualViewCount'], viewOffset=item['viewOffset'])
+ 
+         return jsonify({
+             'items': result,
+@@ -246,21 +281,32 @@
+ 
+ @news_bp.route('/<news_id>/views', methods=['POST'])
+ def record_news_view(news_id):
+-    """Count each anonymous browser once per published article across campuses."""
++    """Record each open and deduplicated readership separately."""
+     campus = request.args.get('campus')
+     if campus is not None and campus not in CAMPUSES:
+         return jsonify({'error': 'Invalid campus'}), 400
+     data = request.get_json(silent=True)
+-    if not isinstance(data, dict) or not isinstance(data.get('visitorId'), str):
+-        return jsonify({'error': 'visitorId must be a UUID'}), 400
+-    try:
+-        visitor = uuid.UUID(data['visitorId'])
+-        if visitor.version != 4 or str(visitor) != data['visitorId'].lower():
+-            raise ValueError('Expected canonical UUID v4')
++    if not isinstance(data, dict):
++        return jsonify({'error': 'Expected a JSON object'}), 400
++    visitor_hash = None
++    try:
++        def validate_id(value):
++            if not isinstance(value, str):
++                raise ValueError('Expected UUID string')
++            parsed = uuid.UUID(value)
++            if parsed.version != 4 or str(parsed) != value.lower():
++                raise ValueError('Expected canonical UUID v4')
++            return str(parsed)
++        if data.get('visitorId') is not None:
++            visitor = validate_id(data['visitorId'])
++            visitor_hash = hashlib.sha256((news_id + ':' + visitor).encode()).hexdigest()
++        # A legacy client has no event ID. Treat each of its requests as one
++        # open; upgraded clients reuse a UUID when retrying an open.
++        event_id = validate_id(data['viewId']) if 'viewId' in data else str(uuid.uuid4())
++        if not visitor_hash and 'viewId' not in data:
++            raise ValueError('A viewId is required without a persistent visitor')
+     except (ValueError, AttributeError):
+-        return jsonify({'error': 'visitorId must be a UUID v4'}), 400
+-    # Article-specific hash avoids storing browser tokens or personal details.
+-    visitor_hash = hashlib.sha256((news_id + ':' + str(visitor)).encode()).hexdigest()
++        return jsonify({'error': 'visitorId and viewId must be UUID v4 strings'}), 400
+     conn = data_service.get_db()
+     try:
+         # Serialize check, insert and increment: parallel requests cannot double
+@@ -270,14 +316,21 @@
+         if (not r or r['status'] != 'published' or _is_future_publish_at(r['publish_at'])
+                 or (campus and campus not in _row_campuses(r))):
+             return jsonify({'error': 'News not available'}), 404
+-        inserted = conn.execute('''INSERT OR IGNORE INTO news_readers
+-            (news_id, visitor_hash, first_viewed_at) VALUES (?, ?, ?)''',
+-            (news_id, visitor_hash, datetime.now(timezone.utc).isoformat())).rowcount
+-        if inserted:
+-            conn.execute('UPDATE news SET view_count = view_count + 1 WHERE id = ?', (news_id,))
+-        count = conn.execute('SELECT view_count FROM news WHERE id = ?', (news_id,)).fetchone()[0]
+-        conn.commit()
+-        response = jsonify({'id': news_id, 'viewCount': count, 'counted': bool(inserted)})
++        timestamp = datetime.now(timezone.utc).isoformat()
++        event_inserted = conn.execute('''INSERT OR IGNORE INTO news_view_events
++            (news_id, event_id, viewed_at) VALUES (?, ?, ?)''', (news_id, event_id, timestamp)).rowcount
++        inserted = 0
++        if event_inserted:
++            if visitor_hash:
++                inserted = conn.execute('''INSERT OR IGNORE INTO news_readers
++                    (news_id, visitor_hash, first_viewed_at) VALUES (?, ?, ?)''',
++                    (news_id, visitor_hash, timestamp)).rowcount
++            conn.execute('''UPDATE news SET total_view_count = total_view_count + 1,
++                view_count = view_count + ? WHERE id = ?''', (int(bool(inserted)), news_id))
++        r = conn.execute('SELECT * FROM news WHERE id = ?', (news_id,)).fetchone()
++        conn.commit()
++        response = jsonify({'id': news_id, 'viewCount': r['total_view_count'] + r['view_offset'],
++                            'viewMetricsVersion': 2, 'counted': bool(inserted)})
+         response.headers['Cache-Control'] = 'no-store'
+         return response
+     finally:
+@@ -462,6 +515,7 @@
+         if cursor.rowcount == 0:
+             return jsonify({'error': 'News not found'}), 404
+         conn.execute('DELETE FROM news_readers WHERE news_id = ?', (news_id,))
++        conn.execute('DELETE FROM news_view_events WHERE news_id = ?', (news_id,))
+         conn.commit()
+         return jsonify({'status': 'deleted'}), 200
+     finally:
+--- a/schema.sql
++++ b/schema.sql
+@@ -112,6 +112,7 @@
+ CREATE INDEX idx_med_admin_child_date ON med_administration_records(child_id, date);
+ CREATE INDEX idx_med_admin_record ON med_administration_records(med_record_id);
+ 
++DROP TABLE IF EXISTS news_view_events;
+ DROP TABLE IF EXISTS news_readers;
+ DROP TABLE IF EXISTS news;
+ CREATE TABLE news (
+@@ -132,7 +133,9 @@
+     status VARCHAR(50),
+     first_published_at VARCHAR(50),
+     pending_draft TEXT,
+-    view_count INTEGER NOT NULL DEFAULT 0
++    view_count INTEGER NOT NULL DEFAULT 0,
++    total_view_count INTEGER NOT NULL DEFAULT 0,
++    view_offset INTEGER NOT NULL DEFAULT 0
+ );
+ 
+ CREATE TABLE news_readers (
+@@ -140,6 +143,14 @@
+     visitor_hash TEXT NOT NULL,
+     first_viewed_at TEXT NOT NULL,
+     PRIMARY KEY (news_id, visitor_hash),
++    FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
++);
++
++CREATE TABLE news_view_events (
++    news_id TEXT NOT NULL,
++    event_id TEXT NOT NULL,
++    viewed_at TEXT NOT NULL,
++    PRIMARY KEY (news_id, event_id),
+     FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
+ );
+ 
+--- a/test_news_views.py
++++ b/test_news_views.py
+@@ -1,94 +1,146 @@
+-"""Readership regression tests using temporary SQLite databases only."""
++"""Dual statistics regression tests; temporary SQLite only, never the live DB."""
+ import concurrent.futures
++import glob
+ import sqlite3
+ import uuid
++from unittest.mock import patch
+ from test_news_campuses import NewsCampusTests
+ 
+ 
+ class NewsViewTests(NewsCampusTests):
+-    def view(self, news_id='legacy', visitor=None, campus='kindergarten'):
++    def view(self, news_id='legacy', visitor=None, campus='kindergarten', view_id=None):
+         return self.client.post('/api/news/' + news_id + '/views?campus=' + campus,
+-                                json={'visitorId': visitor or str(uuid.uuid4())})
++                                json={'visitorId': visitor or str(uuid.uuid4()),
++                                      'viewId': view_id or str(uuid.uuid4())})
+ 
+-    def test_first_repeat_and_other_readers(self):
++    def stats(self, news_id='legacy'):
++        with self.routes.data_service.get_db() as conn:
++            return dict(conn.execute('SELECT * FROM news WHERE id = ?', (news_id,)).fetchone())
++
++    def test_existing_news_baseline_is_separate_and_idempotent(self):
++        original = self.stats()
++        self.assertTrue(100 <= original['view_offset'] <= 200)
++        self.assertEqual(original['view_count'], 0)
++        self.assertEqual(original['total_view_count'], 0)
++        self.routes._migrate()
++        self.assertEqual(self.stats(), original)
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], original['view_offset'])
++        new = self.create(['kindergarten'])['id']
++        self.assertEqual(self.stats(new)['view_offset'], 0)
++
++    def test_repeat_opens_increment_total_but_not_readers(self):
+         visitor = str(uuid.uuid4())
+-        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 0)
+-        for expected in [True, False, False]:
++        baseline = self.stats()['view_offset']
++        for total in range(1, 4):
+             result = self.view(visitor=visitor)
+             self.assertEqual(result.status_code, 200)
+-            self.assertEqual(result.json['counted'], expected)
+-            self.assertEqual(result.json['viewCount'], 1)
+-        self.assertEqual(self.view().json['viewCount'], 2)
+-        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 2)
+-        self.assertEqual(self.client.get('/api/news/').json['items'][0]['viewCount'], 2)
++            self.assertEqual(result.json['counted'], total == 1)
++            self.assertEqual(result.json['viewCount'], baseline + total)
++        self.view()
++        self.assertEqual(self.stats()['view_count'], 2)
++        self.assertEqual(self.stats()['total_view_count'], 4)
+ 
+-    def test_listing_details_and_previews_do_not_count(self):
++    def test_event_retry_is_idempotent(self):
++        visitor, event = str(uuid.uuid4()), str(uuid.uuid4())
++        self.view(visitor=visitor, view_id=event)
++        self.view(visitor=visitor, view_id=event)
++        self.assertEqual(self.stats()['view_count'], 1)
++        self.assertEqual(self.stats()['total_view_count'], 1)
++
++    def test_public_private_statistics_are_separated(self):
++        self.view()
++        for url in ['/api/news/', '/api/news/?status=all', '/api/news/legacy']:
++            data = self.client.get(url).json
++            item = data['items'][0] if 'items' in data else data
++            for field in ['uniqueViewCount', 'actualViewCount', 'viewOffset']:
++                self.assertNotIn(field, item)
++        with patch.object(self.routes, 'resolve_user', return_value=(('teacher-test', 'teacher'), None)):
++            item = self.client.get('/api/news/?status=all').json['items'][0]
++            self.assertEqual(item['uniqueViewCount'], 1)
++            self.assertEqual(item['actualViewCount'], 1)
++            self.assertEqual(item['viewCount'], item['viewOffset'] + 1)
++
++    def test_listing_and_details_do_not_count(self):
+         for _ in range(3):
+             self.client.get('/api/news/')
+             self.client.get('/api/news/legacy?campus=kindergarten')
+-        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 0)
++        self.assertEqual(self.stats()['total_view_count'], 0)
++        self.assertEqual(self.stats()['view_count'], 0)
+ 
+     def test_campuses_share_readers_but_articles_do_not(self):
+         both = self.create(['kindergarten', 'afterschool'])['id']
+         visitor = str(uuid.uuid4())
+-        self.assertEqual(self.view(both, visitor).json['viewCount'], 1)
+-        self.assertFalse(self.view(both, visitor, 'afterschool').json['counted'])
+-        self.assertEqual(self.view(visitor=visitor).json['viewCount'], 1)
++        self.view(both, visitor)
++        self.view(both, visitor, 'afterschool')
++        self.assertEqual(self.stats(both)['view_count'], 1)
++        self.assertEqual(self.stats(both)['total_view_count'], 2)
++        self.view(visitor=visitor)
++        self.assertEqual(self.stats()['view_count'], 1)
+ 
+     def test_hidden_drafts_scheduled_missing_and_wrong_campus_do_not_count(self):
+-        for status, publish_at in [('draft', '2026-01-01'), ('hidden', '2026-01-01'),
+-                                   ('published', '9999-01-01')]:
++        for status, publish_at in [('draft', '2026-01-01'), ('hidden', '2026-01-01'), ('published', '9999-01-01')]:
+             article = self.create(['kindergarten'], status=status, publishAt=publish_at)['id']
+             self.assertEqual(self.view(article).status_code, 404)
+-            self.assertEqual(self.client.get('/api/news/' + article).json['viewCount'], 0)
++            self.assertEqual(self.stats(article)['total_view_count'], 0)
+         self.assertEqual(self.view('missing').status_code, 404)
+         self.assertEqual(self.view(campus='afterschool').status_code, 404)
+         self.assertEqual(self.view(campus='unknown').status_code, 400)
+ 
+-    def test_invalid_payloads(self):
++    def test_invalid_payloads_and_storage_unavailable(self):
+         for payload in [None, [], {}, {'visitorId': 123}, {'visitorId': 'x'},
+-                        {'visitorId': str(uuid.uuid1())}, {'visitorId': 'x' * 1000}]:
++                        {'visitorId': str(uuid.uuid1())}, {'viewId': 'x'}]:
+             self.assertEqual(self.client.post('/api/news/legacy/views', json=payload).status_code, 400)
++        result = self.client.post('/api/news/legacy/views', json={'visitorId': None, 'viewId': str(uuid.uuid4())})
++        self.assertEqual(result.status_code, 200)
++        self.assertEqual(self.stats()['total_view_count'], 1)
++        self.assertEqual(self.stats()['view_count'], 0)
++        # Compatibility: the previous public client supplied only visitorId.
++        self.assertEqual(self.client.post('/api/news/legacy/views', json={'visitorId': str(uuid.uuid4())}).status_code, 200)
+ 
+-    def test_counts_survive_edits_and_migration_and_delete_cleans_readers(self):
++    def test_edits_preserve_metrics_and_delete_cleans_both_tables(self):
+         self.view()
+-        self.client.put('/api/news/legacy', json={'title': 'Updated', 'viewCount': 999})
++        original = self.stats()
++        self.client.put('/api/news/legacy', json={'title': 'Updated', 'viewCount': 999,
++            'uniqueViewCount': 999, 'actualViewCount': 999, 'viewOffset': 999})
+         self.routes._migrate()
+-        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 1)
++        for field in ['view_count', 'total_view_count', 'view_offset']:
++            self.assertEqual(self.stats()[field], original[field])
+         self.client.delete('/api/news/legacy')
+         with self.routes.data_service.get_db() as conn:
+-            self.assertEqual(conn.execute('SELECT COUNT(*) FROM news_readers').fetchone()[0], 0)
++            for table in ['news_readers', 'news_view_events']:
++                self.assertEqual(conn.execute('SELECT COUNT(*) FROM ' + table).fetchone()[0], 0)
+ 
+-    def test_parallel_duplicate_and_distinct_readers(self):
+-        visitor = str(uuid.uuid4())
+-        tokens = [visitor] * 8 + [str(uuid.uuid4()) for _ in range(8)]
+-        def send(token):
++    def test_parallel_repeat_opens_and_event_retries(self):
++        visitor, event = str(uuid.uuid4()), str(uuid.uuid4())
++        payloads = [{'visitorId': visitor, 'viewId': event}] * 8 + [
++            {'visitorId': visitor, 'viewId': str(uuid.uuid4())} for _ in range(8)]
++        def send(payload):
+             with self.client.application.test_client() as client:
+-                return client.post('/api/news/legacy/views', json={'visitorId': token}).status_code
++                return client.post('/api/news/legacy/views', json=payload).status_code
+         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+-            self.assertEqual(list(pool.map(send, tokens)), [200] * 16)
+-        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 9)
++            self.assertEqual(list(pool.map(send, payloads)), [200] * 16)
++        self.assertEqual(self.stats()['view_count'], 1)
++        self.assertEqual(self.stats()['total_view_count'], 9)
++
++    def test_v1_migration_preserves_known_readers_and_backs_up(self):
+         with self.routes.data_service.get_db() as conn:
+-            self.assertEqual(conn.execute('SELECT COUNT(*) FROM news_readers').fetchone()[0], 9)
+-            self.assertNotIn(visitor, str(conn.execute('SELECT * FROM news_readers').fetchall()))
+-
+-    def test_existing_campus_database_is_backed_up_before_views_migration(self):
+-        with self.routes.data_service.get_db() as conn:
+-            conn.execute('DROP TABLE news_readers')
+-            # Rebuild the table without the new column to simulate current prod.
+-            columns = [row[1] for row in conn.execute('PRAGMA table_info(news)') if row[1] != 'view_count']
++            conn.execute('DROP TABLE news_view_events')
++            columns = [r[1] for r in conn.execute('PRAGMA table_info(news)')
++                       if r[1] not in ('total_view_count', 'view_offset')]
+             names = ', '.join(columns)
+             conn.execute('CREATE TABLE old_news AS SELECT ' + names + ' FROM news')
+             conn.execute('DROP TABLE news')
+             conn.execute('ALTER TABLE old_news RENAME TO news')
++            conn.execute('UPDATE news SET view_count = 7')
+         self.routes._migrate()
+-        import glob
+-        backups = glob.glob(self.routes.data_service.db_path + '.backup-before-news-views-*')
++        self.assertEqual(self.stats()['view_count'], 7)
++        self.assertEqual(self.stats()['total_view_count'], 7)
++        self.assertTrue(100 <= self.stats()['view_offset'] <= 200)
++        backups = glob.glob(self.routes.data_service.db_path + '.backup-before-dual-news-views-*')
+         self.assertEqual(len(backups), 1)
+         with sqlite3.connect(backups[0]) as conn:
+-            self.assertEqual(conn.execute('SELECT title FROM news').fetchone()[0], 'Legacy')
+-            self.assertNotIn('view_count', [row[1] for row in conn.execute('PRAGMA table_info(news)')])
+-        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 0)
++            self.assertEqual(conn.execute('SELECT view_count FROM news').fetchone()[0], 7)
++            self.assertNotIn('view_offset', [r[1] for r in conn.execute('PRAGMA table_info(news)')])
+ 
+ 
+ if __name__ == '__main__':
+--- a/test_news_campuses.py
++++ b/test_news_campuses.py
+@@ -35,6 +35,7 @@
+ 
+         auth = types.ModuleType('services.teacher_auth')
+         auth.require_teacher = auth.require_parent_or_teacher = lambda fn: fn
++        auth.resolve_user = lambda roles: ((None, None), 'missing_token')
+         data = types.ModuleType('services.data_service')
+         data.DataService = TestDataService
+         push = types.ModuleType('services.push_outbox_service')
