@@ -353,9 +353,17 @@ body.overlay-open .site-header {
 .news-view-count {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
+    box-sizing: border-box;
+    min-height: 44px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    background: #fff;
     font-size: 0.8125rem;
     line-height: 1.5;
+    white-space: nowrap;
     color: var(--color-text-secondary, #6e6e73);
     font-variant-numeric: tabular-nums;
 }
