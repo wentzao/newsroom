@@ -1,0 +1,239 @@
+--- a/routes/news_routes.py
++++ b/routes/news_routes.py
+@@ -12,6 +12,8 @@
+ import json
+ import random
+ import sqlite3
++import hashlib
++import uuid
+ 
+ news_bp = Blueprint('news', __name__)
+ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+@@ -46,16 +48,27 @@
+     conn = data_service.get_db()
+     try:
+         cols = [r[1] for r in conn.execute('PRAGMA table_info(news)').fetchall()]
+-        if 'target_campuses' not in cols:
++        if 'target_campuses' not in cols or 'view_count' not in cols:
+             # Back up the live DB before changing the schema. Existing rows
+             # receive the kindergarten default without rewriting article data.
+-            backup_path = data_service.db_path + '.backup-before-news-campuses-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
++            migration = 'news-campuses' if 'target_campuses' not in cols else 'news-views'
++            backup_path = data_service.db_path + '.backup-before-' + migration + '-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+             backup = sqlite3.connect(backup_path)
+             try:
+                 conn.backup(backup)
+             finally:
+                 backup.close()
++        if 'target_campuses' not in cols:
+             conn.execute("ALTER TABLE news ADD COLUMN target_campuses TEXT NOT NULL DEFAULT '[\"kindergarten\"]'")
++        if 'view_count' not in cols:
++            conn.execute('ALTER TABLE news ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0')
++        conn.execute('''CREATE TABLE IF NOT EXISTS news_readers (
++            news_id TEXT NOT NULL,
++            visitor_hash TEXT NOT NULL,
++            first_viewed_at TEXT NOT NULL,
++            PRIMARY KEY (news_id, visitor_hash),
++            FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
++        )''')
+         if 'ref_no' not in cols:
+             conn.execute('ALTER TABLE news ADD COLUMN ref_no VARCHAR(50)')
+         if 'first_published_at' not in cols:
+@@ -118,6 +131,7 @@
+         'pendingDraft': pending_draft,
+         'hasDraft': pending_draft is not None,
+         'pinOrder': r['pin_order'] if 'pin_order' in keys else None,
++        'viewCount': r['view_count'],
+     }
+ 
+ @news_bp.route('/', methods=['GET'])
+@@ -200,6 +214,7 @@
+                 'hasDraft': item.get('hasDraft', False),
+                 'pinOrder': item.get('pinOrder'),
+                 'targetCampuses': item.get('targetCampuses'),
++                'viewCount': item['viewCount'],
+             })
+ 
+         return jsonify({
+@@ -228,6 +243,46 @@
+         return jsonify(format_news(r))
+     finally:
+         conn.close()
++
++@news_bp.route('/<news_id>/views', methods=['POST'])
++def record_news_view(news_id):
++    """Count each anonymous browser once per published article across campuses."""
++    campus = request.args.get('campus')
++    if campus is not None and campus not in CAMPUSES:
++        return jsonify({'error': 'Invalid campus'}), 400
++    data = request.get_json(silent=True)
++    if not isinstance(data, dict) or not isinstance(data.get('visitorId'), str):
++        return jsonify({'error': 'visitorId must be a UUID'}), 400
++    try:
++        visitor = uuid.UUID(data['visitorId'])
++        if visitor.version != 4 or str(visitor) != data['visitorId'].lower():
++            raise ValueError('Expected canonical UUID v4')
++    except (ValueError, AttributeError):
++        return jsonify({'error': 'visitorId must be a UUID v4'}), 400
++    # Article-specific hash avoids storing browser tokens or personal details.
++    visitor_hash = hashlib.sha256((news_id + ':' + str(visitor)).encode()).hexdigest()
++    conn = data_service.get_db()
++    try:
++        # Serialize check, insert and increment: parallel requests cannot double
++        # count or race publication/deletion. The composite PK enforces uniqueness.
++        conn.execute('BEGIN IMMEDIATE')
++        r = conn.execute('SELECT * FROM news WHERE id = ?', (news_id,)).fetchone()
++        if (not r or r['status'] != 'published' or _is_future_publish_at(r['publish_at'])
++                or (campus and campus not in _row_campuses(r))):
++            return jsonify({'error': 'News not available'}), 404
++        inserted = conn.execute('''INSERT OR IGNORE INTO news_readers
++            (news_id, visitor_hash, first_viewed_at) VALUES (?, ?, ?)''',
++            (news_id, visitor_hash, datetime.now(timezone.utc).isoformat())).rowcount
++        if inserted:
++            conn.execute('UPDATE news SET view_count = view_count + 1 WHERE id = ?', (news_id,))
++        count = conn.execute('SELECT view_count FROM news WHERE id = ?', (news_id,)).fetchone()[0]
++        conn.commit()
++        response = jsonify({'id': news_id, 'viewCount': count, 'counted': bool(inserted)})
++        response.headers['Cache-Control'] = 'no-store'
++        return response
++    finally:
++        conn.close()
++
+ 
+ @news_bp.route('/', methods=['POST'])
+ @require_teacher
+@@ -406,6 +461,7 @@
+         cursor = conn.execute('DELETE FROM news WHERE id = ?', (news_id,))
+         if cursor.rowcount == 0:
+             return jsonify({'error': 'News not found'}), 404
++        conn.execute('DELETE FROM news_readers WHERE news_id = ?', (news_id,))
+         conn.commit()
+         return jsonify({'status': 'deleted'}), 200
+     finally:
+--- a/schema.sql
++++ b/schema.sql
+@@ -112,6 +112,7 @@
+ CREATE INDEX idx_med_admin_child_date ON med_administration_records(child_id, date);
+ CREATE INDEX idx_med_admin_record ON med_administration_records(med_record_id);
+ 
++DROP TABLE IF EXISTS news_readers;
+ DROP TABLE IF EXISTS news;
+ CREATE TABLE news (
+     id VARCHAR(50) PRIMARY KEY,
+@@ -130,7 +131,16 @@
+     target_campuses TEXT NOT NULL DEFAULT '["kindergarten"]',
+     status VARCHAR(50),
+     first_published_at VARCHAR(50),
+-    pending_draft TEXT
++    pending_draft TEXT,
++    view_count INTEGER NOT NULL DEFAULT 0
++);
++
++CREATE TABLE news_readers (
++    news_id TEXT NOT NULL,
++    visitor_hash TEXT NOT NULL,
++    first_viewed_at TEXT NOT NULL,
++    PRIMARY KEY (news_id, visitor_hash),
++    FOREIGN KEY (news_id) REFERENCES news(id) ON DELETE CASCADE
+ );
+ 
+ DROP TABLE IF EXISTS surveys;
+--- /dev/null
++++ b/test_news_views.py
+@@ -0,0 +1,96 @@
++"""Readership regression tests using temporary SQLite databases only."""
++import concurrent.futures
++import sqlite3
++import uuid
++from test_news_campuses import NewsCampusTests
++
++
++class NewsViewTests(NewsCampusTests):
++    def view(self, news_id='legacy', visitor=None, campus='kindergarten'):
++        return self.client.post('/api/news/' + news_id + '/views?campus=' + campus,
++                                json={'visitorId': visitor or str(uuid.uuid4())})
++
++    def test_first_repeat_and_other_readers(self):
++        visitor = str(uuid.uuid4())
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 0)
++        for expected in [True, False, False]:
++            result = self.view(visitor=visitor)
++            self.assertEqual(result.status_code, 200)
++            self.assertEqual(result.json['counted'], expected)
++            self.assertEqual(result.json['viewCount'], 1)
++        self.assertEqual(self.view().json['viewCount'], 2)
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 2)
++        self.assertEqual(self.client.get('/api/news/').json['items'][0]['viewCount'], 2)
++
++    def test_listing_details_and_previews_do_not_count(self):
++        for _ in range(3):
++            self.client.get('/api/news/')
++            self.client.get('/api/news/legacy?campus=kindergarten')
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 0)
++
++    def test_campuses_share_readers_but_articles_do_not(self):
++        both = self.create(['kindergarten', 'afterschool'])['id']
++        visitor = str(uuid.uuid4())
++        self.assertEqual(self.view(both, visitor).json['viewCount'], 1)
++        self.assertFalse(self.view(both, visitor, 'afterschool').json['counted'])
++        self.assertEqual(self.view(visitor=visitor).json['viewCount'], 1)
++
++    def test_hidden_drafts_scheduled_missing_and_wrong_campus_do_not_count(self):
++        for status, publish_at in [('draft', '2026-01-01'), ('hidden', '2026-01-01'),
++                                   ('published', '9999-01-01')]:
++            article = self.create(['kindergarten'], status=status, publishAt=publish_at)['id']
++            self.assertEqual(self.view(article).status_code, 404)
++            self.assertEqual(self.client.get('/api/news/' + article).json['viewCount'], 0)
++        self.assertEqual(self.view('missing').status_code, 404)
++        self.assertEqual(self.view(campus='afterschool').status_code, 404)
++        self.assertEqual(self.view(campus='unknown').status_code, 400)
++
++    def test_invalid_payloads(self):
++        for payload in [None, [], {}, {'visitorId': 123}, {'visitorId': 'x'},
++                        {'visitorId': str(uuid.uuid1())}, {'visitorId': 'x' * 1000}]:
++            self.assertEqual(self.client.post('/api/news/legacy/views', json=payload).status_code, 400)
++
++    def test_counts_survive_edits_and_migration_and_delete_cleans_readers(self):
++        self.view()
++        self.client.put('/api/news/legacy', json={'title': 'Updated', 'viewCount': 999})
++        self.routes._migrate()
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 1)
++        self.client.delete('/api/news/legacy')
++        with self.routes.data_service.get_db() as conn:
++            self.assertEqual(conn.execute('SELECT COUNT(*) FROM news_readers').fetchone()[0], 0)
++
++    def test_parallel_duplicate_and_distinct_readers(self):
++        visitor = str(uuid.uuid4())
++        tokens = [visitor] * 8 + [str(uuid.uuid4()) for _ in range(8)]
++        def send(token):
++            with self.client.application.test_client() as client:
++                return client.post('/api/news/legacy/views', json={'visitorId': token}).status_code
++        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
++            self.assertEqual(list(pool.map(send, tokens)), [200] * 16)
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 9)
++        with self.routes.data_service.get_db() as conn:
++            self.assertEqual(conn.execute('SELECT COUNT(*) FROM news_readers').fetchone()[0], 9)
++            self.assertNotIn(visitor, str(conn.execute('SELECT * FROM news_readers').fetchall()))
++
++    def test_existing_campus_database_is_backed_up_before_views_migration(self):
++        with self.routes.data_service.get_db() as conn:
++            conn.execute('DROP TABLE news_readers')
++            # Rebuild the table without the new column to simulate current prod.
++            columns = [row[1] for row in conn.execute('PRAGMA table_info(news)') if row[1] != 'view_count']
++            names = ', '.join(columns)
++            conn.execute('CREATE TABLE old_news AS SELECT ' + names + ' FROM news')
++            conn.execute('DROP TABLE news')
++            conn.execute('ALTER TABLE old_news RENAME TO news')
++        self.routes._migrate()
++        import glob
++        backups = glob.glob(self.routes.data_service.db_path + '.backup-before-news-views-*')
++        self.assertEqual(len(backups), 1)
++        with sqlite3.connect(backups[0]) as conn:
++            self.assertEqual(conn.execute('SELECT title FROM news').fetchone()[0], 'Legacy')
++            self.assertNotIn('view_count', [row[1] for row in conn.execute('PRAGMA table_info(news)')])
++        self.assertEqual(self.client.get('/api/news/legacy').json['viewCount'], 0)
++
++
++if __name__ == '__main__':
++    import unittest
++    unittest.main()

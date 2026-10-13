@@ -350,6 +350,23 @@ body.overlay-open .site-header {
     overflow: hidden;
 }
 
+.news-view-count {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary, #6e6e73);
+    font-variant-numeric: tabular-nums;
+}
+
+.news-view-count[hidden] {
+    display: none;
+}
+
+.article-meta .news-view-count {
+    margin-top: 0;
+}
+
 .featured-date {
     font-size: 0.8125rem;
     /* 🍎 13px */

@@ -510,6 +510,7 @@ function buildArticleHtml(article) {
                     <div class="article-meta">
                         <span class="article-tag">${article.tag || '公告'}</span>
                         <span class="article-date">${formatDate(article.publishAt)}</span>
+                        ${NewsViews.markup(article)}
                     </div>
                     <h1 class="article-title">${article.title}</h1>
                 </div>
@@ -587,6 +588,7 @@ function renderMoreNews(currentId, overlayContext) {
                     <span class="more-news-tag">${news.tag || '公告'}</span>
                     <h3 class="more-news-title">${news.title}</h3>
                     <time class="more-news-date">${formatDate(news.publishAt)}</time>
+                    ${NewsViews.markup(news)}
                 </div>
             </a>
         `;
@@ -662,6 +664,10 @@ async function openArticleOverlay(articleId, preloadedArticle = null) {
 
         // Render content
         overlay.innerHTML = buildArticleHtml(article);
+        NewsViews.record(API_URL, article, activeCampus, overlay).then(count => {
+            const item = allNewsItems.find(news => news.id === article.id);
+            if (item && Number.isSafeInteger(count)) item.viewCount = count;
+        });
 
         // Bind article-specific actions after the dynamic markup exists.
         bindShareControls(overlay, article);
@@ -952,6 +958,7 @@ function createFeaturedCard(news) {
                 <span class="${tagClass}">${news.tag || '公告'}</span>
                 <h2 class="featured-title">${news.title}</h2>
                 <time class="featured-date">${formatDate(news.publishAt)}</time>
+                ${NewsViews.markup(news)}
             </div>
         </article>
     `;
@@ -1002,6 +1009,7 @@ function createNewsCard(news, isSmall = false, isMobileCompact = isSmall) {
                 <span class="${tagClass}">${news.tag || '公告'}</span>
                 <h3 class="news-card-title">${news.title}</h3>
                 <time class="news-card-date">${formatDate(news.publishAt)}</time>
+                ${NewsViews.markup(news)}
             </div>
         </article>
     `;

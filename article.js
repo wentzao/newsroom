@@ -155,6 +155,7 @@ function renderArticle(article) {
     document.querySelector('.article-tag').textContent = article.tag || '公告';
     document.querySelector('.article-date').textContent = formatDate(article.publishAt);
     document.querySelector('.article-title').textContent = article.title;
+    document.querySelector('.article-meta').insertAdjacentHTML('beforeend', NewsViews.markup(article));
 
     // Build content
     let contentHtml = '';
@@ -226,6 +227,7 @@ async function fetchArticle() {
         document.querySelector('.more-news-title').textContent = `${CAMPUS_CONFIG[activeCampus].name} 的更多資訊`;
         document.querySelector('.back-btn-circle').href = getNewsroomPath();
         renderArticle(article);
+        NewsViews.record(API_URL, article, activeCampus, document.querySelector('.article-container'));
         fetchMoreNews(articleId);
 
     } catch (error) {
@@ -255,6 +257,7 @@ function renderMoreNews(newsItems) {
                     <span class="more-news-tag">${news.tag || '公告'}</span>
                     <h3 class="more-news-title">${news.title}</h3>
                     <time class="more-news-date">${formatDate(news.publishAt)}</time>
+                    ${NewsViews.markup(news)}
                 </div>
             </a>
         `;
